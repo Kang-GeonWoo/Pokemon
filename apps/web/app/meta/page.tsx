@@ -34,7 +34,7 @@ export default function MetaAnalyticsPage() {
     useEffect(() => {
         if (selectedPokemon && !setsData) {
             setLoadingSets(true);
-            fetch('https://play.pokemonshowdown.com/data/sets/gen9ou.json')
+            fetch('https://play.pokemonshowdown.com/data/sets/gen9.json')
                 .then(r => r.json())
                 .then(data => setSetsData(data))
                 .catch(e => console.error(e))

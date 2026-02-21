@@ -3,9 +3,10 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Users, Search, PlusCircle, MessageSquare, Heart, X } from "lucide-react";
+import { Users, Search, PlusCircle, MessageSquare, Heart } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 type Post = {
     id: string;
@@ -17,13 +18,9 @@ type Post = {
 };
 
 export default function CommunityPage() {
-    const [isWriting, setIsWriting] = useState(false);
+    const router = useRouter();
     const [posts, setPosts] = useState<Post[]>([]);
-    const [newTitle, setNewTitle] = useState("");
-    const [newBody, setNewBody] = useState("");
-    const [newType, setNewType] = useState<"TEAM" | "FREE">("TEAM");
     const [loading, setLoading] = useState(true);
-    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [activeTab, setActiveTab] = useState<"ALL" | "TEAM" | "FREE">("ALL");
     const [searchQuery, setSearchQuery] = useState("");
 
@@ -48,31 +45,6 @@ export default function CommunityPage() {
         fetchPosts();
     }, []);
 
-    const handleSubmit = async () => {
-        if (!newTitle.trim() || !newBody.trim()) {
-            alert("제목과 내용을 입력해주세요.");
-            return;
-        }
-        try {
-            const res = await fetch(`${apiBase}/api/community/posts`, {
-                method: "POST",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: newTitle, body: newBody, type: newType }),
-            });
-            if (res.ok) {
-                alert("성공적으로 글이 게시되었습니다!");
-                setIsWriting(false);
-                setNewTitle("");
-                setNewBody("");
-                fetchPosts();
-            } else {
-                const data = await res.json();
-                alert(data.error || "작성 실패");
-            }
-        } catch (e) {
-            alert("서버와 통신할 수 없습니다.");
-        }
-    };
     return (
         <div className="container mx-auto px-4 py-8 space-y-8 animate-fade-in">
             {/* Header */}
@@ -96,7 +68,7 @@ export default function CommunityPage() {
                             onChange={(e) => setSearchQuery(e.target.value)}
                         />
                     </div>
-                    <Button className="gap-2 shrink-0 bg-accent-emerald hover:bg-emerald-600 text-white" onClick={() => setIsWriting(true)}>
+                    <Button className="gap-2 shrink-0 bg-accent-emerald hover:bg-emerald-600 text-white" onClick={() => router.push('/community/write')}>
                         <PlusCircle className="w-4 h-4" /> 게시글 작성하기
                     </Button>
                 </div>
@@ -121,58 +93,6 @@ export default function CommunityPage() {
                 </button>
             </div>
 
-            {/* Write Post Modal */}
-            {isWriting && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/50 backdrop-blur-sm animate-in fade-in">
-                    <div className="bg-surface/90 border border-white/10 p-6 rounded-2xl w-full max-w-lg shadow-2xl relative">
-                        <button onClick={() => setIsWriting(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
-                            <X className="w-5 h-5" />
-                        </button>
-                        <h2 className="text-xl font-bold mb-4">새 게시글 작성</h2>
-
-                        <div className="flex gap-4 mb-4">
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="postType"
-                                    checked={newType === "TEAM"}
-                                    onChange={() => setNewType("TEAM")}
-                                    className="accent-accent-emerald"
-                                />
-                                <span className={newType === "TEAM" ? "text-white" : "text-gray-400"}>렌탈팀 공유</span>
-                            </label>
-                            <label className="flex items-center gap-2 cursor-pointer">
-                                <input
-                                    type="radio"
-                                    name="postType"
-                                    checked={newType === "FREE"}
-                                    onChange={() => setNewType("FREE")}
-                                    className="accent-accent-emerald"
-                                />
-                                <span className={newType === "FREE" ? "text-white" : "text-gray-400"}>자유 게시판</span>
-                            </label>
-                        </div>
-
-                        <Input
-                            placeholder={newType === "TEAM" ? "글 제목 (예: 시즌 13 마스터볼 타부자고 렌탈팀)" : "글 제목"}
-                            className="bg-black/20 mb-4"
-                            value={newTitle}
-                            onChange={e => setNewTitle(e.target.value)}
-                        />
-                        <textarea
-                            placeholder={newType === "TEAM" ? "파티 사용 방법과 코드를 입력해주세요..." : "내용을 자유롭게 입력해주세요..."}
-                            className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-emerald mb-4"
-                            value={newBody}
-                            onChange={e => setNewBody(e.target.value)}
-                        ></textarea>
-                        <Button className="w-full bg-accent-emerald hover:bg-emerald-600 text-white shadow-lg" onClick={handleSubmit}>
-                            게시하기
-                        </Button>
-                    </div>
-                </div>
-            )
-            }
-
             {/* List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 {loading ? (
@@ -192,7 +112,7 @@ export default function CommunityPage() {
                     }
                     return true;
                 }).map((post, i) => (
-                    <Card key={post.id || i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group cursor-pointer" onClick={() => setSelectedPost(post)}>
+                    <Card key={post.id || i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group cursor-pointer" onClick={() => router.push(`/community/${post.id}`)}>
                         <CardHeader className="pb-3 border-b border-white/10">
                             <CardTitle className="text-lg text-white group-hover:text-accent-emerald transition-colors line-clamp-1">
                                 {post.title}
@@ -235,46 +155,6 @@ export default function CommunityPage() {
             <div className="flex justify-center pt-8">
                 <Button variant="secondary" className="border border-white/10 bg-transparent text-gray-400 hover:text-white" onClick={fetchPosts}>새로고침</Button>
             </div>
-
-            {/* Read Post Modal */}
-            {selectedPost && selectedPost.id && (
-                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4" onClick={(e) => {
-                    if (e.target === e.currentTarget) setSelectedPost(null);
-                }}>
-                    <div className="bg-surface border border-white/10 p-6 md:p-8 rounded-2xl w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
-                        <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-black/20 p-2 rounded-full">
-                            <X className="w-5 h-5" />
-                        </button>
-                        <div className="mb-6 border-b border-white/10 pb-4 pr-8">
-                            <h2 className="text-2xl font-bold text-white mb-2">{selectedPost.title}</h2>
-                            <div className="flex items-center gap-4 text-sm text-gray-400">
-                                <span>작성자: <span className="text-gray-200">{selectedPost.author}</span></span>
-                                <div className="flex gap-1.5 flex-wrap">
-                                    {selectedPost.tags?.map(t => (
-                                        <Badge variant="outline" key={t} className="text-[10px] border-accent-emerald/20 text-accent-emerald/80 bg-accent-emerald/5 px-1 py-0">
-                                            #{t}
-                                        </Badge>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
-
-                        <div className="text-gray-200 whitespace-pre-wrap leading-relaxed min-h-[150px] bg-black/20 p-4 rounded-xl border border-white/5">
-                            {/* @ts-ignore */}
-                            {selectedPost.body || "내용이 없습니다."}
-                        </div>
-
-                        <div className="mt-8 flex justify-between items-center pt-4 border-t border-white/10">
-                            <Button variant="ghost" className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-900/20">
-                                <Heart className="w-4 h-4" /> 추천 ({selectedPost.likes || 0})
-                            </Button>
-                            <Button variant="secondary" onClick={() => setSelectedPost(null)}>
-                                닫기
-                            </Button>
-                        </div>
-                    </div>
-                </div>
-            )}
         </div >
     );
 }

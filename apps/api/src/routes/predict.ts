@@ -125,13 +125,13 @@ predictRouter.post('/moves', async (req, res) => {
     // -- 동적 재계산 로직 (Dynamic Recalculation based on Locked Moves & Sets) --
     if (locked.size > 0 && session.formatId) {
       try {
-        if (!formatSetsCache.has(session.formatId)) {
-          console.log(`Fetching dynamic sets for ${session.formatId}...`);
-          const res = await axios.get(`https://play.pokemonshowdown.com/data/sets/${session.formatId}.json`);
-          formatSetsCache.set(session.formatId, res.data);
+        if (!formatSetsCache.has('gen9')) {
+          console.log(`Fetching global sets for gen9...`);
+          const res = await axios.get(`https://play.pokemonshowdown.com/data/sets/gen9.json`);
+          formatSetsCache.set('gen9', res.data);
         }
 
-        const setsData = formatSetsCache.get(session.formatId);
+        const setsData = formatSetsCache.get('gen9');
         if (setsData) {
           const searchId = s.formId ? toId(s.formId) : toId(s.speciesId);
           const targetKey = Object.keys(setsData).find(k => k !== 'stats' && toId(k) === searchId);
