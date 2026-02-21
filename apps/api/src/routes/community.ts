@@ -63,17 +63,23 @@ communityRouter.post('/posts', async (req, res) => {
         const ruleset = await prisma.rulesetSnapshot.findFirst({ orderBy: { createdAt: 'desc' } });
         if (!ruleset) return res.status(400).json({ error: "서버에 배틀 포맷 데이터가 없습니다." });
 
+        const format = await prisma.format.findUnique({ where: { formatId } });
+        if (!format) return res.status(400).json({ error: "유효하지 않은 포맷입니다." });
+
+        const postType = req.body.type === 'FREE' ? 'TEAM' : 'TEAM'; // DB enum is PostType (SET, TEAM). We map FREE to TEAM and use tags to differentiate.
+        const tagLiteral = req.body.type === 'FREE' ? '자유' : '렌탈팀';
+
         const post = await prisma.post.create({
             data: {
                 title,
                 bodyMd: body,
                 type: 'TEAM',
-                formatId,
+                formatId: format.id,
                 rulesetSnapshotId: ruleset.id,
                 authorId: authorId,
                 tags: {
                     create: [
-                        { tag: '렌탈팀' } // 기본 태그 추가
+                        { tag: tagLiteral }
                     ]
                 }
             }

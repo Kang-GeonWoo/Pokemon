@@ -110,10 +110,11 @@ predictRouter.post('/moves', async (req, res) => {
     const banned = bannedSetBySlot.get(s.id) ?? new Set<string>();
     const locked = lockedSetBySlot.get(s.id) ?? new Set<string>();
 
-    // 확정 기술(Locked)은 p=1.0으로 고정
-    const guaranteedMoves: { move_id: string; p: number; locked: boolean }[] = [];
+    // 확정 기술(Locked)은 p=1.0으로 고정, 통계에 아예 없는 기술이면 warning 부여
+    const guaranteedMoves: { move_id: string; p: number; locked: boolean; warning?: boolean }[] = [];
     for (const lid of locked) {
-      guaranteedMoves.push({ move_id: lid, p: 1.0, locked: true });
+      const isViable = raw.some(r => r.moveId === lid);
+      guaranteedMoves.push({ move_id: lid, p: 1.0, locked: true, warning: !isViable });
     }
 
     const remainingSlotCount = Math.max(0, 4 - guaranteedMoves.length);
@@ -183,7 +184,7 @@ predictRouter.post('/moves', async (req, res) => {
     const norm = normalizeTop4(remainingTop);
 
     const finalMoves = [
-      ...guaranteedMoves,
+      ...guaranteedMoves.map(m => ({ move_id: m.move_id, p: m.p, locked: m.locked, warning: m.warning })),
       ...norm.map(m => ({ move_id: m.move_id, p: m.p, locked: false }))
     ];
 

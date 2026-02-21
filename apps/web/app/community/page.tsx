@@ -21,6 +21,7 @@ export default function CommunityPage() {
     const [posts, setPosts] = useState<Post[]>([]);
     const [newTitle, setNewTitle] = useState("");
     const [newBody, setNewBody] = useState("");
+    const [newType, setNewType] = useState<"TEAM" | "FREE">("TEAM");
     const [loading, setLoading] = useState(true);
     const [selectedPost, setSelectedPost] = useState<Post | null>(null);
     const [activeTab, setActiveTab] = useState<"ALL" | "TEAM" | "FREE">("ALL");
@@ -56,7 +57,7 @@ export default function CommunityPage() {
             const res = await fetch(`${apiBase}/api/community/posts`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ title: newTitle, body: newBody }),
+                body: JSON.stringify({ title: newTitle, body: newBody, type: newType }),
             });
             if (res.ok) {
                 alert("성공적으로 글이 게시되었습니다!");
@@ -96,7 +97,7 @@ export default function CommunityPage() {
                         />
                     </div>
                     <Button className="gap-2 shrink-0 bg-accent-emerald hover:bg-emerald-600 text-white" onClick={() => setIsWriting(true)}>
-                        <PlusCircle className="w-4 h-4" /> 내 파티 공유하기
+                        <PlusCircle className="w-4 h-4" /> 게시글 작성하기
                     </Button>
                 </div>
             </div>
@@ -127,16 +128,40 @@ export default function CommunityPage() {
                         <button onClick={() => setIsWriting(false)} className="absolute top-4 right-4 text-gray-400 hover:text-white">
                             <X className="w-5 h-5" />
                         </button>
-                        <h2 className="text-xl font-bold mb-4">새 파티 공유 게시글 작성</h2>
+                        <h2 className="text-xl font-bold mb-4">새 게시글 작성</h2>
+
+                        <div className="flex gap-4 mb-4">
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="postType"
+                                    checked={newType === "TEAM"}
+                                    onChange={() => setNewType("TEAM")}
+                                    className="accent-accent-emerald"
+                                />
+                                <span className={newType === "TEAM" ? "text-white" : "text-gray-400"}>렌탈팀 공유</span>
+                            </label>
+                            <label className="flex items-center gap-2 cursor-pointer">
+                                <input
+                                    type="radio"
+                                    name="postType"
+                                    checked={newType === "FREE"}
+                                    onChange={() => setNewType("FREE")}
+                                    className="accent-accent-emerald"
+                                />
+                                <span className={newType === "FREE" ? "text-white" : "text-gray-400"}>자유 게시판</span>
+                            </label>
+                        </div>
+
                         <Input
-                            placeholder="글 제목 (예: 시즌 13 마스터볼 타부자고 렌탈팀)"
-                            className="bg-black/20"
+                            placeholder={newType === "TEAM" ? "글 제목 (예: 시즌 13 마스터볼 타부자고 렌탈팀)" : "글 제목"}
+                            className="bg-black/20 mb-4"
                             value={newTitle}
                             onChange={e => setNewTitle(e.target.value)}
                         />
                         <textarea
-                            placeholder="파티 사용 방법과 코드를 입력해주세요..."
-                            className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-emerald"
+                            placeholder={newType === "TEAM" ? "파티 사용 방법과 코드를 입력해주세요..." : "내용을 자유롭게 입력해주세요..."}
+                            className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-emerald mb-4"
                             value={newBody}
                             onChange={e => setNewBody(e.target.value)}
                         ></textarea>

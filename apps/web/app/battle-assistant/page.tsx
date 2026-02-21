@@ -188,12 +188,23 @@ export default function BattleAssistantPage() {
                   </div>
                 </CardHeader>
                 <CardContent className="pt-4 space-y-3">
-                  {p.moves.map((m) => {
+                  {p.moves.length === 0 ? (
+                    <div className="text-sm text-gray-400 py-6 text-center bg-black/20 rounded-lg border border-white/5">
+                      😔 해당 포맷에서 사용 통계가 없는 포켓몬입니다. <br />(미입국 또는 밴 의심)
+                    </div>
+                  ) : p.moves.map((m: any) => {
                     const moveName = getMoveName(m.move_id);
                     return (
                       <div key={m.move_id} className="relative group p-2 rounded-lg hover:bg-white/5 transition-colors">
                         <div className="flex justify-between items-center mb-1">
-                          <span className="font-medium text-gray-200">{moveName}</span>
+                          <span className="font-medium text-gray-200 flex items-center gap-2">
+                            {moveName}
+                            {m.warning && (
+                              <span className="text-[10px] font-bold bg-red-500/20 text-red-400 px-1.5 py-0.5 rounded border border-red-500/30" title="이 기술은 현재 포맷 통계에 존재하지 않습니다. 포켓몬이 배울 수 없는 기술이거나 매우 마이너한 픽입니다.">
+                                ⚠️ 통계 없음 (경고)
+                              </span>
+                            )}
+                          </span>
                           <span className={`text-sm font-bold ${m.p > 0.7 ? 'text-accent-emerald' : m.p > 0.3 ? 'text-accent-cyan' : 'text-gray-500'}`}>
                             {(m.p * 100).toFixed(1)}%
                           </span>
