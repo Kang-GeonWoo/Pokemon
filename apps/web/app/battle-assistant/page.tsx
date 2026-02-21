@@ -128,7 +128,7 @@ export default function BattleAssistantPage() {
         {[1, 2, 3, 4, 5, 6].map((n) => {
           const currentId = (slots as any)[n];
           // Check if current input matches a known pokemon (Korean or English ID)
-          const isMatched = currentId && (metadata?.pokemon[currentId] || /^[a-z0-9]+$/.test(currentId));
+          const isMatched = currentId && !!metadata?.pokemon[currentId];
           const displayMatched = metadata?.pokemon[currentId] ? `${metadata.pokemon[currentId]} (${currentId})` : currentId;
 
           const query = inputs[n as keyof typeof inputs] || "";

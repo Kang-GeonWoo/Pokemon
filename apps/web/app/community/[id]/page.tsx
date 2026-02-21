@@ -109,6 +109,43 @@ export default function CommunityPostPage() {
         }
     };
 
+    const handleCommentLike = async (commentId: string) => {
+        try {
+            const res = await fetch(`${apiBase}/api/community/posts/${id}/comments/${commentId}/like`, { method: "POST" });
+            if (res.ok) {
+                // Refresh comments
+                const cRes = await fetch(`${apiBase}/api/community/posts/${id}/comments`);
+                const cData = await cRes.json();
+                setComments(cData.comments || []);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
+    const handleCommentReport = async (commentId: string) => {
+        if (!confirm("이 댓글을 신고하시겠습니까? 누적 신고 시 자동 삭제 처리됩니다.")) return;
+        try {
+            const res = await fetch(`${apiBase}/api/community/posts/${id}/comments/${commentId}/report`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ reason: "SPAM" })
+            });
+            const data = await res.json();
+            if (data.success) {
+                alert("해당 댓글이 접수되었습니다.");
+                // Refresh comments
+                const cRes = await fetch(`${apiBase}/api/community/posts/${id}/comments`);
+                const cData = await cRes.json();
+                setComments(cData.comments || []);
+            } else if (data.error) {
+                alert(data.error);
+            }
+        } catch (e) {
+            console.error(e);
+        }
+    };
+
     if (loading) {
         return <div className="flex justify-center items-center min-h-[50vh]"><Loader2 className="w-8 h-8 animate-spin text-accent-cyan" /></div>;
     }
@@ -165,7 +202,7 @@ export default function CommunityPostPage() {
                             </div>
                         </div>
                         <div className="flex gap-4 text-gray-400 font-medium">
-                            <span>조회수 <b className="text-gray-300">{(post.likes * 3 + Math.floor(Math.random() * 50))}</b></span>
+                            <span>조회수 <b className="text-gray-300">{post.views || 0}</b></span>
                             <span>댓글 <b className="text-gray-300">{comments.length}</b></span>
                         </div>
                     </div>
@@ -223,6 +260,15 @@ export default function CommunityPostPage() {
                                             {c.author.charAt(0)}
                                         </div>
                                         <span className="font-bold text-gray-200 text-sm">{c.author}</span>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <button onClick={() => handleCommentLike(c.id)} className="text-gray-400 hover:text-red-400 flex items-center gap-1 group/btn transition-colors">
+                                            <Heart className="w-3.5 h-3.5 group-hover/btn:fill-current" />
+                                            <span className="text-xs font-semibold">{c.likes || 0}</span>
+                                        </button>
+                                        <button onClick={() => handleCommentReport(c.id)} className="text-gray-500 hover:text-yellow-400 flex items-center gap-1 transition-colors">
+                                            <Flag className="w-3.5 h-3.5" />
+                                        </button>
                                     </div>
                                 </div>
                                 <div className="text-gray-300 text-[15px] pl-8 leading-relaxed whitespace-pre-wrap">{c.body}</div>

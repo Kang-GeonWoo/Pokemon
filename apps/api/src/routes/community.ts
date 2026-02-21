@@ -27,6 +27,7 @@ communityRouter.get('/posts', async (req, res) => {
             author: p.author.displayName,
             likes: p._count.reactions,
             comments: p._count.comments,
+            views: p.views,
             tags: p.tags.map(t => t.tag),
         }));
 
@@ -106,6 +107,12 @@ communityRouter.get('/posts/:id', async (req, res) => {
         if (!post) return res.status(404).json({ error: "게시글을 찾을 수 없습니다." });
         if (post.status !== 'ACTIVE') return res.status(403).json({ error: "삭제되거나 차단된 게시글입니다." });
 
+        // 조회수 증가
+        await prisma.post.update({
+            where: { id: req.params.id },
+            data: { views: { increment: 1 } }
+        });
+
         res.json({
             id: post.id,
             title: post.title,
@@ -114,6 +121,7 @@ communityRouter.get('/posts/:id', async (req, res) => {
             authorId: post.author.id, // Needed for Edit/Delete permission check
             likes: post._count.reactions,
             comments: post._count.comments,
+            views: post.views + 1,
             tags: post.tags.map(t => t.tag),
             createdAt: post.createdAt,
         });
@@ -176,9 +184,12 @@ communityRouter.get('/posts/:id/comments', async (req, res) => {
         const comments = await prisma.comment.findMany({
             where: { postId: req.params.id, status: 'ACTIVE' },
             orderBy: { createdAt: 'asc' },
-            include: { author: { select: { displayName: true } } }
+            include: {
+                author: { select: { displayName: true } },
+                _count: { select: { reactions: true } }
+            }
         });
-        res.json({ comments: comments.map(c => ({ id: c.id, body: c.body, author: c.author.displayName, createdAt: c.createdAt })) });
+        res.json({ comments: comments.map(c => ({ id: c.id, body: c.body, author: c.author.displayName, likes: c._count.reactions, createdAt: c.createdAt })) });
     } catch (error) {
         res.status(500).json({ error: "서버 오류" });
     }
@@ -242,6 +253,11 @@ communityRouter.post('/posts/:id/report', async (req, res) => {
             if (fallbackUser) reporterId = fallbackUser.id;
         }
 
+        const existingReport = await prisma.report.findFirst({
+            where: { reporterId, targetType: 'POST', targetId: req.params.id }
+        });
+        if (existingReport) return res.status(400).json({ error: "이미 신고한 게시글입니다." });
+
         await prisma.report.create({
             data: { reporterId, targetType: 'POST', targetId: req.params.id, reason }
         });
@@ -254,6 +270,68 @@ communityRouter.post('/posts/:id/report', async (req, res) => {
         if (reportCount >= 50) {
             await prisma.post.update({
                 where: { id: req.params.id },
+                data: { status: 'DELETED' }
+            });
+        }
+
+        res.json({ success: true, reportCount });
+    } catch (error) {
+        res.status(500).json({ error: "서버 오류" });
+    }
+});
+
+// POST /api/community/posts/:id/comments/:commentId/like
+communityRouter.post('/posts/:id/comments/:commentId/like', async (req, res) => {
+    let userId = req.body.userId;
+    try {
+        if (!userId) {
+            const fallbackUser = await prisma.user.findFirst({ where: { email: { contains: 'test' } } });
+            if (fallbackUser) userId = fallbackUser.id;
+        }
+
+        const existing = await prisma.commentReaction.findUnique({
+            where: { userId_commentId_type: { userId, commentId: req.params.commentId, type: 'LIKE' } }
+        });
+
+        if (existing) {
+            await prisma.commentReaction.delete({ where: { id: existing.id } });
+            res.json({ success: true, liked: false });
+        } else {
+            await prisma.commentReaction.create({ data: { userId, commentId: req.params.commentId, type: 'LIKE' } });
+            res.json({ success: true, liked: true });
+        }
+    } catch (error) {
+        res.status(500).json({ error: "서버 오류" });
+    }
+});
+
+// POST /api/community/posts/:id/comments/:commentId/report
+communityRouter.post('/posts/:id/comments/:commentId/report', async (req, res) => {
+    let reporterId = req.body.reporterId;
+    const { reason = "SPAM" } = req.body;
+
+    try {
+        if (!reporterId) {
+            const fallbackUser = await prisma.user.findFirst({ where: { email: { contains: 'test' } } });
+            if (fallbackUser) reporterId = fallbackUser.id;
+        }
+
+        const existingReport = await prisma.report.findFirst({
+            where: { reporterId, targetType: 'COMMENT', targetId: req.params.commentId }
+        });
+        if (existingReport) return res.status(400).json({ error: "이미 신고한 댓글입니다." });
+
+        await prisma.report.create({
+            data: { reporterId, targetType: 'COMMENT', targetId: req.params.commentId, reason }
+        });
+
+        const reportCount = await prisma.report.count({
+            where: { targetType: 'COMMENT', targetId: req.params.commentId }
+        });
+
+        if (reportCount >= 10) {
+            await prisma.comment.update({
+                where: { id: req.params.commentId },
                 data: { status: 'DELETED' }
             });
         }

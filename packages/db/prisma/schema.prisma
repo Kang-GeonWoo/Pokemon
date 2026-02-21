@@ -23,6 +23,7 @@ model User {
   posts          Post[]
   comments       Comment[]
   reactions      Reaction[]
+  commentReactions CommentReaction[]
   reports        Report[]
 
   @@map("users")
@@ -303,6 +304,7 @@ model Post {
   rulesetSnapshotId String   @map("ruleset_snapshot_id")
   visibility        String   @default("PUBLIC")
   status            String   @default("ACTIVE")
+  views             Int      @default(0)
   createdAt         DateTime @default(now()) @map("created_at")
   updatedAt         DateTime @updatedAt @map("updated_at")
 
@@ -411,6 +413,7 @@ model Comment {
   author User   @relation(fields: [authorId], references: [id])
   parent Comment? @relation("CommentReplies", fields: [parentId], references: [id])
   replies Comment[] @relation("CommentReplies")
+  reactions CommentReaction[]
 
   @@map("comments")
 }
@@ -432,6 +435,20 @@ model Reaction {
 
   @@unique([userId, postId, type])
   @@map("reactions")
+}
+
+model CommentReaction {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  commentId String       @map("comment_id")
+  type      ReactionType
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user    User    @relation(fields: [userId], references: [id])
+  comment Comment @relation(fields: [commentId], references: [id])
+
+  @@unique([userId, commentId, type])
+  @@map("comment_reactions")
 }
 
 enum ReportTargetType {

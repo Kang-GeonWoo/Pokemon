@@ -134,7 +134,7 @@ predictRouter.post('/moves', async (req, res) => {
     let filtered = raw.filter(r => !banned.has(r.moveId) && !locked.has(r.moveId));
 
     // -- 동적 재계산 로직 (Dynamic Recalculation based on Locked Moves & Sets) --
-    if (locked.size > 0 && session.formatId) {
+    if (session.formatId) {
       try {
         if (!formatSetsCache.has('gen9')) {
           console.log(`Fetching global sets for gen9...`);
@@ -149,39 +149,49 @@ predictRouter.post('/moves', async (req, res) => {
 
           if (targetKey) {
             const pkmnSets = setsData[targetKey];
-            const matchingSetMoves = new Set<string>();
-            let foundMatch = false;
+            const allSetMovesList: Set<string>[] = [];
 
             for (const setName in pkmnSets) {
               const setObj = pkmnSets[setName];
               if (setObj && setObj.moves && Array.isArray(setObj.moves)) {
-                // Showdown set moves format: ["Dragon Dance", "Outrage"] or sometimes an array of arrays for choices
-                // We'll flatten them and toId
-                let setMoveIds: string[] = [];
+                let setMoveIds = new Set<string>();
                 for (const m of setObj.moves) {
-                  if (Array.isArray(m)) setMoveIds.push(...m.map((mx: string) => toId(mx)));
-                  else setMoveIds.push(toId(m));
+                  if (Array.isArray(m)) m.forEach((mx: string) => setMoveIds.add(toId(mx)));
+                  else setMoveIds.add(toId(m));
                 }
-
-                // Do we have ALL locked moves in this standard set?
-                const hasAllLocked = Array.from(locked).every(l => setMoveIds.includes(l));
-                if (hasAllLocked) {
-                  foundMatch = true;
-                  for (const m of setMoveIds) {
-                    if (!locked.has(m) && !banned.has(m)) {
-                      matchingSetMoves.add(m);
-                    }
-                  }
-                }
+                allSetMovesList.push(setMoveIds);
               }
             }
 
-            if (foundMatch && matchingSetMoves.size > 0) {
-              // We only consider moves that are in the matching sets! This acts as a powerful filter.
-              const boosted = filtered.filter(r => matchingSetMoves.has(r.moveId));
-              if (boosted.length > 0) {
-                filtered = boosted; // Overwrite raw probabilities with strictly validated set choices
+            if (allSetMovesList.length > 0) {
+              const validatedFiltered: MoveRow[] = [];
+              const pickedMoves = new Set<string>(locked);
+
+              for (const candidate of filtered) {
+                if (pickedMoves.size === 0) {
+                  validatedFiltered.push(candidate);
+                  pickedMoves.add(candidate.moveId);
+                  continue;
+                }
+
+                // Check if candidate can co-exist with ALREADY sequence of pickedMoves
+                // In ANY standard set
+                const canCoExist = allSetMovesList.some(setMoves => {
+                  const hasAllPicked = Array.from(pickedMoves).every(pm => setMoves.has(pm));
+                  return hasAllPicked && setMoves.has(candidate.moveId);
+                });
+
+                if (canCoExist) {
+                  validatedFiltered.push(candidate);
+                  pickedMoves.add(candidate.moveId);
+                } else {
+                  // Mutual exclusion penalty: drastically reduce probability if they never appear together
+                  candidate.probability *= 0.05;
+                  validatedFiltered.push(candidate);
+                }
               }
+
+              filtered = validatedFiltered.sort((a, b) => b.probability - a.probability);
             }
           }
         }
