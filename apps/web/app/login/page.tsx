@@ -25,9 +25,10 @@ export default function LoginPage() {
         setErrorMsg("");
         setSuccessMsg("");
 
+        const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+        const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+
         try {
-            const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
-            const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
             const body = isLogin
                 ? { email, password }
                 : { email, password, displayName };
@@ -57,8 +58,9 @@ export default function LoginPage() {
                     setTimeout(() => setIsLogin(true), 1500);
                 }
             }
-        } catch (e) {
-            setErrorMsg("서버와 통신할 수 없습니다.");
+        } catch (e: any) {
+            console.error("Login fetch error:", e);
+            setErrorMsg(`에러: ${e.message || "통신 실패"} (대상: ${apiBase})`);
         } finally {
             setLoading(false);
         }
