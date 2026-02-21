@@ -11,6 +11,7 @@ import { battleRouter } from './routes/battle';
 import { predictRouter } from './routes/predict';
 import metadataRouter from './routes/metadata';
 import { authRouter } from './routes/auth';
+import { communityRouter } from './routes/community';
 import { Application } from 'express';
 
 const app: Application = express();
@@ -48,5 +49,6 @@ app.use('/api/battle', battleRouter);
 app.use('/api/predict', predictRouter);
 app.use('/api/metadata', metadataRouter);
 app.use('/api/auth', authRouter);
+app.use('/api/community', communityRouter);
 
 export default app;

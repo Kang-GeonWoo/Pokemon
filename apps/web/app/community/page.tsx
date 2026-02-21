@@ -5,10 +5,70 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Users, Search, PlusCircle, MessageSquare, Heart, X } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+
+type Post = {
+    id: string;
+    title: string;
+    author: string;
+    likes: number;
+    comments: number;
+    tags: string[];
+};
 
 export default function CommunityPage() {
     const [isWriting, setIsWriting] = useState(false);
+    const [posts, setPosts] = useState<Post[]>([]);
+    const [newTitle, setNewTitle] = useState("");
+    const [newBody, setNewBody] = useState("");
+    const [loading, setLoading] = useState(true);
+
+    const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
+
+    const fetchPosts = async () => {
+        try {
+            setLoading(true);
+            const res = await fetch(`${apiBase}/api/community/posts`);
+            if (res.ok) {
+                const data = await res.json();
+                setPosts(data.posts || []);
+            }
+        } catch (e) {
+            console.error(e);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    useEffect(() => {
+        fetchPosts();
+    }, []);
+
+    const handleSubmit = async () => {
+        if (!newTitle.trim() || !newBody.trim()) {
+            alert("제목과 내용을 입력해주세요.");
+            return;
+        }
+        try {
+            const res = await fetch(`${apiBase}/api/community/posts`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ title: newTitle, body: newBody }),
+            });
+            if (res.ok) {
+                alert("성공적으로 글이 게시되었습니다!");
+                setIsWriting(false);
+                setNewTitle("");
+                setNewBody("");
+                fetchPosts();
+            } else {
+                const data = await res.json();
+                alert(data.error || "작성 실패");
+            }
+        } catch (e) {
+            alert("서버와 통신할 수 없습니다.");
+        }
+    };
     return (
         <div className="container mx-auto px-4 py-8 space-y-8 animate-fade-in">
             {/* Header */}
@@ -41,31 +101,35 @@ export default function CommunityPage() {
                             <X className="w-5 h-5" />
                         </button>
                         <h2 className="text-xl font-bold mb-4">새 파티 공유 게시글 작성</h2>
-                        <div className="space-y-4">
-                            <Input placeholder="글 제목 (예: 시즌 13 마스터볼 타부자고 렌탈팀)" className="bg-black/20" />
-                            <textarea placeholder="파티 사용 방법과 코드를 입력해주세요..." className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-emerald"></textarea>
-                            <Button className="w-full bg-accent-emerald hover:bg-emerald-600 text-white shadow-lg" onClick={() => {
-                                alert("성공적으로 글이 게시되었습니다! (현재 프론트엔드 모의 구현 테스트 완료)");
-                                setIsWriting(false);
-                            }}>
-                                게시하기
-                            </Button>
-                        </div>
+                        <Input
+                            placeholder="글 제목 (예: 시즌 13 마스터볼 타부자고 렌탈팀)"
+                            className="bg-black/20"
+                            value={newTitle}
+                            onChange={e => setNewTitle(e.target.value)}
+                        />
+                        <textarea
+                            placeholder="파티 사용 방법과 코드를 입력해주세요..."
+                            className="w-full h-32 bg-black/20 border border-white/10 rounded-lg p-3 text-sm resize-none focus:outline-none focus:ring-1 focus:ring-accent-emerald"
+                            value={newBody}
+                            onChange={e => setNewBody(e.target.value)}
+                        ></textarea>
+                        <Button className="w-full bg-accent-emerald hover:bg-emerald-600 text-white shadow-lg" onClick={handleSubmit}>
+                            게시하기
+                        </Button>
                     </div>
                 </div>
-            )}
+                </div>
+    )
+}
 
-            {/* List */}
+{/* List */ }
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
-                {[
-                    { title: "시즌 13 최종 1위 타부자고 안경 비트다운", author: "지존망나뇽", likes: 124, comments: 23, tags: ["대면구축", "타부자고"] },
-                    { title: "안정성 100% 딩루 아머까오 사이클", author: "강철의연금술사", likes: 89, comments: 12, tags: ["사이클", "딩루"] },
-                    { title: "망나뇽 고집 용춤 머리띠 스윕파티", author: "신속의망나뇽", likes: 256, comments: 45, tags: ["전개", "망나뇽"] },
-                    { title: "초보자 추천: 날개치는머리 스탠다드", author: "뉴비구조대", likes: 512, comments: 88, tags: ["스탠다드", "날개치는머리"] },
-                    { title: "파오젠 기띠 룸파티", author: "아이스크림", likes: 67, comments: 8, tags: ["기믹", "파오젠"] },
-                    { title: "우라오스(연격) 물방울 세팅", author: "물주먹", likes: 112, comments: 15, tags: ["대면구축", "우라오스"] },
-                ].map((post, i) => (
-                    <Card key={i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group">
+                {loading ? (
+                    <div className="col-span-full text-center text-gray-400 py-10">목록을 불러오는 중...</div>
+                ) : posts.length === 0 ? (
+                    <div className="col-span-full text-center text-gray-400 py-10">첫 파티를 공유하고 영웅이 되어보세요!</div>
+                ) : posts.map((post, i) => (
+                    <Card key={post.id || i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group cursor-pointer" onClick={() => alert("게시글 상세 보기 구현 준비 중입니다!")}>
                         <CardHeader className="pb-3 border-b border-white/10">
                             <CardTitle className="text-lg text-white group-hover:text-accent-emerald transition-colors line-clamp-1">
                                 {post.title}
@@ -75,8 +139,8 @@ export default function CommunityPage() {
                             </div>
                         </CardHeader>
                         <CardContent className="pt-4 space-y-4">
+                            {/* Dummy Icons for Party preview */}
                             <div className="flex gap-2">
-                                {/* Dummy Icons */}
                                 {[1, 2, 3, 4, 5, 6].map(n => (
                                     <div key={n} className="w-8 h-8 rounded bg-white/10 flex items-center justify-center text-[10px] text-gray-500 border border-white/5">
                                         P{n}
@@ -84,19 +148,19 @@ export default function CommunityPage() {
                                 ))}
                             </div>
                             <div className="flex justify-between items-center">
-                                <div className="flex gap-1.5">
+                                <div className="flex gap-1.5 flex-wrap">
                                     {post.tags.map(t => (
-                                        <Badge variant="outline" key={t} className="text-xs border-accent-emerald/20 text-accent-emerald/80 bg-accent-emerald/5">
+                                        <Badge variant="outline" key={t} className="text-[10px] border-accent-emerald/20 text-accent-emerald/80 bg-accent-emerald/5 px-1 py-0">
                                             #{t}
                                         </Badge>
                                     ))}
                                 </div>
-                                <div className="flex items-center gap-3 text-xs text-gray-400">
+                                <div className="flex items-center gap-3 text-xs text-gray-400 shrink-0">
                                     <span className="flex items-center gap-1 hover:text-red-400 transition-colors cursor-pointer">
-                                        <Heart className="w-3.5 h-3.5" /> {post.likes}
+                                        <Heart className="w-3.5 h-3.5" /> {post.likes || 0}
                                     </span>
                                     <span className="flex items-center gap-1 hover:text-blue-400 transition-colors cursor-pointer">
-                                        <MessageSquare className="w-3.5 h-3.5" /> {post.comments}
+                                        <MessageSquare className="w-3.5 h-3.5" /> {post.comments || 0}
                                     </span>
                                 </div>
                             </div>
@@ -108,6 +172,6 @@ export default function CommunityPage() {
             <div className="flex justify-center pt-8">
                 <Button variant="secondary" className="border border-white/10 bg-transparent text-gray-400 hover:text-white">더 보기</Button>
             </div>
-        </div>
+        </div >
     );
 }
