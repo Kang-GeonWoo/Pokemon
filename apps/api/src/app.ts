@@ -25,7 +25,12 @@ app.use(
   cors({
     origin: function (origin, callback) {
       // origin이 없거나(서버 간 통신 등) 허용된 도메인인 경우 승인
-      if (!origin || allowedOrigins.includes(origin)) {
+      // 사용자가 CORS_ORIGIN 환경변수에 https:// 를 누락하고 적었을 경우를 방어합니다.
+      const isAllowed = !origin || allowedOrigins.some(allowed =>
+        origin === allowed || origin === `https://${allowed}` || origin === `http://${allowed}`
+      );
+
+      if (isAllowed) {
         callback(null, true);
       } else {
         console.error(`[CORS Blocked] Unauthorized origin: ${origin}`);

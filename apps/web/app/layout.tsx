@@ -43,6 +43,7 @@ export default function RootLayout({
                             <NavLink href="/battle-assistant">배틀 허브</NavLink>
                             <NavLink href="/meta">메타 분석</NavLink>
                             <NavLink href="/community">커뮤니티</NavLink>
+                            <NavLink href="/guide">이용 가이드</NavLink>
                         </div>
 
                         <div className="flex items-center space-x-3">
