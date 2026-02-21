@@ -41,7 +41,7 @@ async function tryFetchChaosJsonGz(month: string, formatId: string, cutoff: numb
   if (res.status !== 200) return null;
 
   const buf = Buffer.from(res.data);
-  const jsonText = zlib.gunzipSync(buf).toString('utf8');
+  const jsonText = zlib.gunzipSync(buf as any).toString('utf8');
   const parsed = JSON.parse(jsonText);
   return parsed as ChaosData;
 }
@@ -143,13 +143,13 @@ async function fetchStatsForFormat(formatId: string) {
       },
     });
 
-    // Moves (상위 20개)
+    // Moves (상위 50개)
     const movesObj = pData?.Moves;
     if (movesObj && typeof movesObj === 'object') {
       const moves = Object.keys(movesObj)
         .map(name => ({ name, prob: movesObj[name] }))
         .sort((x, y) => (y.prob ?? 0) - (x.prob ?? 0))
-        .slice(0, 20);
+        .slice(0, 50);
 
       for (const mv of moves) {
         await prisma.moveUsage.create({
@@ -206,8 +206,14 @@ async function main() {
     process.exit(1);
   }
 
-  // MVP: 일단 gen9ou만 확실히 채우자 (속도/용량 때문에)
-  const TARGET_FORMATS = ['gen9ou'];
+  // 여러 주요 포맷에서 데이터를 긁어옵니다.
+  const TARGET_FORMATS = [
+    'gen9ou',
+    'gen9ubers',
+    'gen9vgc2024regf',
+    'gen9nationaldex',
+    'gen9doublesou'
+  ];
 
   for (const fmt of TARGET_FORMATS) {
     await fetchStatsForFormat(fmt);

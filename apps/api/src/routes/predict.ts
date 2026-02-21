@@ -95,17 +95,28 @@ predictRouter.post('/moves', async (req, res) => {
 
   for (const s of slots) {
     // move_usage에서 top 후보를 넉넉히 가져온 뒤(예: 50개)
-    // BANNED 제외하고 4개를 뽑음
-    const raw: MoveRow[] = await prisma.moveUsage.findMany({
+    // 모든 활성화된 포맷(OU, Ubers, VGC 등)의 통계를 취합하여 최고 픽률을 채택 (포괄적 샘플 커버리지)
+    const allUsages = await prisma.moveUsage.findMany({
       where: {
-        statsVersionId: session.statsVersionId,
         speciesId: s.speciesId,
-        formId: s.formId, // null 가능 (Prisma가 null 조건을 무시할 수도 있어 스키마에 따라 다름)
+        formId: s.formId,
+        statsVersion: { status: 'ACTIVE' },
       },
-      orderBy: { probability: 'desc' },
-      take: 50,
       select: { moveId: true, probability: true },
     });
+
+    const maxProbMap = new Map<string, number>();
+    for (const u of allUsages) {
+      const current = maxProbMap.get(u.moveId) || 0;
+      if (typeof u.probability === 'number' && u.probability > current) {
+        maxProbMap.set(u.moveId, u.probability);
+      }
+    }
+
+    const raw: MoveRow[] = Array.from(maxProbMap.entries())
+      .map(([moveId, probability]) => ({ moveId, probability }))
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, 50);
 
     const banned = bannedSetBySlot.get(s.id) ?? new Set<string>();
     const locked = lockedSetBySlot.get(s.id) ?? new Set<string>();

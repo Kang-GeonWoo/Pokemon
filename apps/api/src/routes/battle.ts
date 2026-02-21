@@ -195,14 +195,16 @@ battleRouter.post('/opponent/slot', async (req, res) => {
 
   const existing = await prisma.battleOpponentSlot.findFirst({
     where: { sessionId, slot },
-    select: { id: true },
+    select: { id: true, speciesId: true },
   });
 
   let row;
 
   if (existing) {
-    // 슬롯이 바뀌면 그 슬롯에 저장된 LOCKED/BANNED는 무의미해지므로 삭제
-    await prisma.battleOpponentMove.deleteMany({ where: { slotId: existing.id } });
+    // 슬롯(종족)이 바뀌었을 때만 LOCKED/BANNED를 삭제 (유지 버그 수정)
+    if (existing.speciesId !== speciesId) {
+      await prisma.battleOpponentMove.deleteMany({ where: { slotId: existing.id } });
+    }
 
     row = await prisma.battleOpponentSlot.update({
       where: { id: existing.id },

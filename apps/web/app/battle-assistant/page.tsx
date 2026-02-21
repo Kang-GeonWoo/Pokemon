@@ -8,7 +8,7 @@ import { InstructionCard } from "@/components/ui/instruction-card";
 import { Combobox } from "@/components/ui/combobox";
 import { RefreshCw, Zap, Trash2, Shield, Lock, Ban, Eraser, Loader2 } from "lucide-react";
 import { useMetadata } from "@/hooks/useMetadata";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 
 export default function BattleAssistantPage() {
   const {
@@ -30,6 +30,7 @@ export default function BattleAssistantPage() {
 
   // Local state for inputs to allow typing Korean before it matches an ID
   const [inputs, setInputs] = useState<{ [key: string]: string }>({ 1: "", 2: "", 3: "", 4: "", 5: "", 6: "" });
+  const [focusedSlot, setFocusedSlot] = useState<number | null>(null);
 
   // Sync slots to inputs when slots change (e.g. after reset or load) generally
   // But we need to be careful not to overwrite user typing.
@@ -69,6 +70,14 @@ export default function BattleAssistantPage() {
     // If it matches a Korean name, use the mapped ID.
     // We pass 'matchedId' to setSlots. 
     setSlots(s => ({ ...s, [n]: matchedId }));
+  };
+
+  const getSuggestions = (query: string) => {
+    if (!query || query.length < 1) return [];
+    const q = query.toLowerCase();
+    return Object.entries(metadata?.pokemon || {})
+      .filter(([id, name]) => (name as string).toLowerCase().includes(q) || id.includes(q))
+      .slice(0, 10); // top 10
   };
 
   return (
@@ -122,9 +131,12 @@ export default function BattleAssistantPage() {
           const isMatched = currentId && (metadata?.pokemon[currentId] || /^[a-z0-9]+$/.test(currentId));
           const displayMatched = metadata?.pokemon[currentId] ? `${metadata.pokemon[currentId]} (${currentId})` : currentId;
 
+          const query = inputs[n as keyof typeof inputs] || "";
+          const suggestions = getSuggestions(query);
+
           return (
-            <Card key={n} className={`border-t-4 relative overflow-hidden group transition-colors ${isMatched ? 'border-t-accent-emerald' : 'border-t-primary/50'}`}>
-              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity">
+            <Card key={n} style={{ zIndex: focusedSlot === n ? 100 : 50 - n }} className={`border-t-4 relative transition-colors ${isMatched ? 'border-t-accent-emerald' : 'border-t-primary/50'}`}>
+              <div className="absolute top-0 right-0 p-4 opacity-10 group-hover:opacity-20 transition-opacity pointer-events-none">
                 <h2 className="text-6xl font-bold text-white">{n}</h2>
               </div>
               <CardHeader className="pb-2">
@@ -134,12 +146,34 @@ export default function BattleAssistantPage() {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <Input
-                  value={inputs[n as keyof typeof inputs]}
-                  onChange={(e) => handleInputChange(n, e.target.value)}
-                  placeholder="예: 타부자고 or gholdengo"
-                  className="text-lg py-6 bg-surface/80"
-                />
+                <div className="relative">
+                  <Input
+                    value={query}
+                    onChange={(e) => handleInputChange(n, e.target.value)}
+                    onFocus={() => setFocusedSlot(n)}
+                    onBlur={() => setTimeout(() => setFocusedSlot(null), 150)}
+                    placeholder="예: 타부자고 or 망나뇽"
+                    className="text-lg py-6 bg-surface/80 relative z-10"
+                  />
+                  {focusedSlot === n && query && suggestions.length > 0 && !isMatched && (
+                    <div className="absolute top-full left-0 right-0 z-[200] mt-1 bg-surface border border-white/20 rounded-md shadow-2xl overflow-hidden py-1">
+                      {suggestions.map(([id, name]) => (
+                        <button
+                          key={id}
+                          type="button"
+                          className="w-full text-left px-4 py-2 hover:bg-white/10 text-white text-sm"
+                          onMouseDown={(e) => {
+                            e.preventDefault();
+                            handleInputChange(n, name as string);
+                            setFocusedSlot(null);
+                          }}
+                        >
+                          {name as string} <span className="text-gray-500 text-xs ml-2">({id})</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           );
@@ -177,10 +211,10 @@ export default function BattleAssistantPage() {
         )}
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {pred?.predictions?.map((p) => {
+          {pred?.predictions?.map((p, index) => {
             const pokeName = getName(p.species_id);
             return (
-              <Card key={p.slot_id} className="bg-surface/40 backdrop-blur-sm border-white/5">
+              <Card key={p.slot_id} style={{ zIndex: 50 - index }} className="relative bg-surface/40 backdrop-blur-sm border-white/5">
                 <CardHeader className="bg-white/5 pb-3">
                   <div className="flex justify-between items-center">
                     <span className="text-xs uppercase tracking-wider text-gray-400">Slot {p.slot}</span>
