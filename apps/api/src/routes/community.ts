@@ -23,6 +23,7 @@ communityRouter.get('/posts', async (req, res) => {
         const formattedPosts = posts.map(p => ({
             id: p.id,
             title: p.title,
+            body: p.bodyMd,
             author: p.author.displayName,
             likes: p._count.reactions,
             comments: p._count.comments,

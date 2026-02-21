@@ -6,7 +6,7 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { InstructionCard } from "@/components/ui/instruction-card";
 import { Combobox } from "@/components/ui/combobox";
-import { RefreshCw, Zap, Trash2, Shield, Lock, Ban, Eraser } from "lucide-react";
+import { RefreshCw, Zap, Trash2, Shield, Lock, Ban, Eraser, Loader2 } from "lucide-react";
 import { useMetadata } from "@/hooks/useMetadata";
 import { useState, useEffect, useMemo } from "react";
 
@@ -149,8 +149,8 @@ export default function BattleAssistantPage() {
       {/* Actions */}
       <div className="flex justify-center gap-4 animate-slide-up" style={{ animationDelay: '0.3s' }}>
         <Button onClick={saveSlotsAndPredict} disabled={loading || !sid} size="lg" className="px-8 text-lg gap-2 shadow-lg shadow-primary/20">
-          <Zap className="w-5 h-5 fill-current" />
-          분석 및 예측 시작
+          {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : <Zap className="w-5 h-5 fill-current" />}
+          {loading ? "AI 분석 중..." : "분석 및 예측 시작"}
         </Button>
         <Button onClick={() => {
           reset();

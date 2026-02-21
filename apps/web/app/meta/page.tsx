@@ -3,7 +3,12 @@
 import { useMetadata } from "@/hooks/useMetadata";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { BarChart3, TrendingUp, TrendingDown, Minus } from "lucide-react";
+import { BarChart3, TrendingUp, TrendingDown, Minus, X, Activity, Droplets, Target, Shield, Sword } from "lucide-react";
+import { useState, useEffect } from "react";
+
+function toId(text: string) {
+    return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
 
 export default function MetaAnalyticsPage() {
     const metadata = useMetadata();
@@ -19,8 +24,34 @@ export default function MetaAnalyticsPage() {
         { id: "chien-pao", rank: 7, trend: "down" },
         { id: "amoonguss", rank: 8, trend: "up" },
         { id: "corviknight", rank: 9, trend: "down" },
-        { id: "urshifu-rapid-strike", rank: 10, trend: "up" },
+        { id: "urshifurapidstrike", rank: 10, trend: "up" },
     ];
+
+    const [selectedPokemon, setSelectedPokemon] = useState<string | null>(null);
+    const [setsData, setSetsData] = useState<any>(null);
+    const [loadingSets, setLoadingSets] = useState(false);
+
+    useEffect(() => {
+        if (selectedPokemon && !setsData) {
+            setLoadingSets(true);
+            fetch('https://play.pokemonshowdown.com/data/sets/gen9ou.json')
+                .then(r => r.json())
+                .then(data => setSetsData(data))
+                .catch(e => console.error(e))
+                .finally(() => setLoadingSets(false));
+        }
+    }, [selectedPokemon]);
+
+    let displaySets: any[] = [];
+    if (selectedPokemon && setsData) {
+        // Find matching key
+        const targetKey = Object.keys(setsData).find(k => k !== 'stats' && toId(k) === selectedPokemon);
+        if (targetKey && setsData[targetKey]) {
+            const pkmnSets = setsData[targetKey];
+            // Get up to 5 sets
+            displaySets = Object.entries(pkmnSets).slice(0, 5).map(([name, data]) => ({ name, data }));
+        }
+    }
 
     if (!metadata) {
         return <div className="flex justify-center items-center min-h-[50vh] animate-pulse">데이터 로딩 중...</div>;
@@ -49,7 +80,7 @@ export default function MetaAnalyticsPage() {
                 {mockRankings.map((p, i) => {
                     const pokeName = metadata.pokemon[p.id] || p.id;
                     return (
-                        <Card key={p.id} className="bg-surface/40 backdrop-blur-xl border-white/5 flex items-center p-4 hover:border-accent-cyan/50 hover:bg-surface/60 transition-all hover:translate-x-1 group">
+                        <Card key={p.id} onClick={() => setSelectedPokemon(p.id)} className="cursor-pointer bg-surface/40 backdrop-blur-xl border-white/5 flex items-center p-4 hover:border-accent-cyan/50 hover:bg-surface/60 transition-all hover:translate-x-1 group">
                             <div className="w-16 text-center text-2xl font-black font-mono text-gray-500 group-hover:text-white transition-colors">
                                 #{p.rank}
                             </div>
@@ -72,6 +103,84 @@ export default function MetaAnalyticsPage() {
                     );
                 })}
             </div>
+
+            {/* Set Modal */}
+            {selectedPokemon && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-in fade-in" onClick={(e) => {
+                    if (e.target === e.currentTarget) setSelectedPokemon(null);
+                }}>
+                    <div className="bg-surface border border-white/10 p-6 rounded-2xl w-full max-w-3xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={() => setSelectedPokemon(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-black/20 p-2 rounded-full">
+                            <X className="w-5 h-5" />
+                        </button>
+                        <h2 className="text-2xl font-bold mb-4 text-accent-cyan flex items-center gap-2">
+                            <Target className="w-6 h-6" /> {metadata.pokemon[selectedPokemon] || selectedPokemon} 유력 샘플 정보
+                        </h2>
+
+                        {loadingSets ? (
+                            <div className="py-12 flex flex-col items-center justify-center text-gray-400">
+                                <div className="w-8 h-8 rounded-full border-2 border-accent-cyan border-t-transparent animate-spin mb-4"></div>
+                                글로벌 메타 데이터(Smogon)를 분석하여 유력 샘플을 불러오고 있습니다...
+                            </div>
+                        ) : displaySets.length === 0 ? (
+                            <div className="py-12 text-center text-gray-400 bg-black/20 rounded-xl border border-white/5">
+                                이 포켓몬의 등록된 메이저 템플릿 샘플이 아직 없습니다.
+                            </div>
+                        ) : (
+                            <div className="space-y-6">
+                                {displaySets.map((setObj, i) => {
+                                    const d = setObj.data as any;
+                                    const ability = d.abilities?.[0] ? (metadata.abilities[toId(d.abilities[0])] || d.abilities[0]) : '-';
+                                    const item = d.items?.[0] ? (metadata.items[toId(d.items[0])] || d.items[0]) : '-';
+                                    const nature = d.nature ? (metadata.natures[toId(d.nature)] || d.nature) : '-';
+                                    const moves = (d.moves || []).map((mArr: any) => {
+                                        const m = Array.isArray(mArr) ? mArr[0] : mArr;
+                                        return metadata.moves[toId(m)] || m;
+                                    });
+
+                                    return (
+                                        <Card key={i} className="bg-surface/60 border-white/10 overflow-hidden">
+                                            <CardHeader className="bg-black/20 pb-3 border-b border-white/5 py-3">
+                                                <CardTitle className="text-lg text-white font-medium flex justify-between items-center">
+                                                    <span>샘플 #{i + 1} : <span className="text-accent-emerald">{setObj.name}</span></span>
+                                                </CardTitle>
+                                            </CardHeader>
+                                            <CardContent className="pt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                <div className="space-y-3">
+                                                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                                        <span className="text-sm text-gray-400 flex items-center gap-1"><Activity className="w-4 h-4" /> 특성</span>
+                                                        <span className="text-white font-medium">{ability}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                                        <span className="text-sm text-gray-400 flex items-center gap-1"><Droplets className="w-4 h-4" /> 도구</span>
+                                                        <span className="text-white font-medium">{item}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                                                        <span className="text-sm text-gray-400">성격 (Nature)</span>
+                                                        <span className="text-white font-medium">{nature}</span>
+                                                    </div>
+                                                    <div className="flex justify-between items-center">
+                                                        <span className="text-sm text-gray-400">노력치 (EVs)</span>
+                                                        <span className="text-xs text-accent-cyan font-mono bg-accent-cyan/10 px-2 py-1 rounded">
+                                                            {d.evs ? Object.entries(d.evs).map(([k, v]) => `${k.toUpperCase()}:${v}`).join(' / ') : '기본'}
+                                                        </span>
+                                                    </div>
+                                                </div>
+                                                <div className="bg-black/30 p-3 rounded-lg border border-white/5">
+                                                    <h4 className="text-sm text-gray-400 mb-2 border-b border-white/10 pb-1 flex items-center gap-1"><Sword className="w-4 h-4" /> 주요 기술 배치</h4>
+                                                    <ul className="space-y-1.5 list-disc list-inside text-gray-200 pl-1">
+                                                        {moves.map((m: string, idx: number) => <li key={idx} className="font-medium text-sm">{m}</li>)}
+                                                    </ul>
+                                                </div>
+                                            </CardContent>
+                                        </Card>
+                                    );
+                                })}
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

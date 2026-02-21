@@ -1,8 +1,16 @@
 // apps/api/src/routes/predict.ts
 import { Router } from 'express';
 import { prisma } from 'db';
+import axios from 'axios';
 
 export const predictRouter: Router = Router();
+
+// 캐시를 위한 In-Memory Map (운영 환경에서는 Redis 등 권장)
+const formatSetsCache = new Map<string, any>();
+
+function toId(text: string) {
+  return (text || '').toLowerCase().replace(/[^a-z0-9]+/g, '');
+}
 
 type MoveRow = { moveId: string; probability: number };
 type LockedRow = { slotId: string; moveId: string; status: string };
@@ -33,6 +41,7 @@ predictRouter.post('/moves', async (req, res) => {
     select: {
       id: true,
       statsVersionId: true,
+      formatId: true,
     },
   });
   if (!session) return res.status(404).json({ error: 'session not found' });
@@ -110,7 +119,64 @@ predictRouter.post('/moves', async (req, res) => {
     const remainingSlotCount = Math.max(0, 4 - guaranteedMoves.length);
 
     // Banned 되었거나 이미 Locked 된 기술 제외
-    const filtered = raw.filter(r => !banned.has(r.moveId) && !locked.has(r.moveId));
+    let filtered = raw.filter(r => !banned.has(r.moveId) && !locked.has(r.moveId));
+
+    // -- 동적 재계산 로직 (Dynamic Recalculation based on Locked Moves & Sets) --
+    if (locked.size > 0 && session.formatId) {
+      try {
+        if (!formatSetsCache.has(session.formatId)) {
+          console.log(`Fetching dynamic sets for ${session.formatId}...`);
+          const res = await axios.get(`https://play.pokemonshowdown.com/data/sets/${session.formatId}.json`);
+          formatSetsCache.set(session.formatId, res.data);
+        }
+
+        const setsData = formatSetsCache.get(session.formatId);
+        if (setsData) {
+          const searchId = s.formId ? toId(s.formId) : toId(s.speciesId);
+          const targetKey = Object.keys(setsData).find(k => k !== 'stats' && toId(k) === searchId);
+
+          if (targetKey) {
+            const pkmnSets = setsData[targetKey];
+            const matchingSetMoves = new Set<string>();
+            let foundMatch = false;
+
+            for (const setName in pkmnSets) {
+              const setObj = pkmnSets[setName];
+              if (setObj && setObj.moves && Array.isArray(setObj.moves)) {
+                // Showdown set moves format: ["Dragon Dance", "Outrage"] or sometimes an array of arrays for choices
+                // We'll flatten them and toId
+                let setMoveIds: string[] = [];
+                for (const m of setObj.moves) {
+                  if (Array.isArray(m)) setMoveIds.push(...m.map((mx: string) => toId(mx)));
+                  else setMoveIds.push(toId(m));
+                }
+
+                // Do we have ALL locked moves in this standard set?
+                const hasAllLocked = Array.from(locked).every(l => setMoveIds.includes(l));
+                if (hasAllLocked) {
+                  foundMatch = true;
+                  for (const m of setMoveIds) {
+                    if (!locked.has(m) && !banned.has(m)) {
+                      matchingSetMoves.add(m);
+                    }
+                  }
+                }
+              }
+            }
+
+            if (foundMatch && matchingSetMoves.size > 0) {
+              // We only consider moves that are in the matching sets! This acts as a powerful filter.
+              const boosted = filtered.filter(r => matchingSetMoves.has(r.moveId));
+              if (boosted.length > 0) {
+                filtered = boosted; // Overwrite raw probabilities with strictly validated set choices
+              }
+            }
+          }
+        }
+      } catch (e) {
+        console.error("Set fetch error for dynamic prediction:", e);
+      }
+    }
 
     const remainingTop = filtered.slice(0, remainingSlotCount);
     // 남은 자리(4-k)를 채울 후보들의 확률을 다시 1.0 분모로 재계산(동적 예측)

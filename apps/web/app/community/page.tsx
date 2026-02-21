@@ -22,6 +22,9 @@ export default function CommunityPage() {
     const [newTitle, setNewTitle] = useState("");
     const [newBody, setNewBody] = useState("");
     const [loading, setLoading] = useState(true);
+    const [selectedPost, setSelectedPost] = useState<Post | null>(null);
+    const [activeTab, setActiveTab] = useState<"ALL" | "TEAM" | "FREE">("ALL");
+    const [searchQuery, setSearchQuery] = useState("");
 
     const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
@@ -85,12 +88,36 @@ export default function CommunityPage() {
                 <div className="flex items-center gap-3 w-full md:w-auto">
                     <div className="relative w-full md:w-64">
                         <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-500" />
-                        <Input placeholder="포켓몬 이름, 파티 태그 검색" className="pl-9 bg-surface/50 border-white/10" />
+                        <Input
+                            placeholder="포켓몬 이름, 파티 태그 검색"
+                            className="pl-9 bg-surface/50 border-white/10"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
                     </div>
                     <Button className="gap-2 shrink-0 bg-accent-emerald hover:bg-emerald-600 text-white" onClick={() => setIsWriting(true)}>
-                        <PlusCircle className="w-4 h-4" /> 파티 공유하기
+                        <PlusCircle className="w-4 h-4" /> 내 파티 공유하기
                     </Button>
                 </div>
+            </div>
+
+            {/* Tabs */}
+            <div className="flex gap-4 border-b border-white/10 pb-2">
+                <button
+                    onClick={() => setActiveTab("ALL")}
+                    className={`font-semibold pb-2 border-b-2 transition-colors ${activeTab === 'ALL' ? 'text-accent-emerald border-accent-emerald' : 'text-gray-400 border-transparent hover:text-white'}`}>
+                    전체보기
+                </button>
+                <button
+                    onClick={() => setActiveTab("TEAM")}
+                    className={`font-semibold pb-2 border-b-2 transition-colors ${activeTab === 'TEAM' ? 'text-accent-emerald border-accent-emerald' : 'text-gray-400 border-transparent hover:text-white'}`}>
+                    렌탈팀 갤러리
+                </button>
+                <button
+                    onClick={() => setActiveTab("FREE")}
+                    className={`font-semibold pb-2 border-b-2 transition-colors ${activeTab === 'FREE' ? 'text-accent-emerald border-accent-emerald' : 'text-gray-400 border-transparent hover:text-white'}`}>
+                    자유 게시판
+                </button>
             </div>
 
             {/* Write Post Modal */}
@@ -118,18 +145,29 @@ export default function CommunityPage() {
                         </Button>
                     </div>
                 </div>
-                </div>
-    )
-}
+            )
+            }
 
-{/* List */ }
+            {/* List */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 animate-slide-up" style={{ animationDelay: '0.1s' }}>
                 {loading ? (
-                    <div className="col-span-full text-center text-gray-400 py-10">목록을 불러오는 중...</div>
+                    <div className="col-span-full text-center text-gray-400 py-10">
+                        <div className="w-8 h-8 rounded-full border-2 border-accent-emerald border-t-transparent animate-spin mx-auto mb-4"></div>
+                        목록을 불러오는 중...
+                    </div>
                 ) : posts.length === 0 ? (
                     <div className="col-span-full text-center text-gray-400 py-10">첫 파티를 공유하고 영웅이 되어보세요!</div>
-                ) : posts.map((post, i) => (
-                    <Card key={post.id || i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group cursor-pointer" onClick={() => alert("게시글 상세 보기 구현 준비 중입니다!")}>
+                ) : posts.filter(p => {
+                    const isTeam = p.tags.includes("렌탈팀");
+                    if (activeTab === "TEAM" && !isTeam) return false;
+                    if (activeTab === "FREE" && isTeam) return false;
+                    if (searchQuery) {
+                        const sq = searchQuery.toLowerCase();
+                        return p.title.toLowerCase().includes(sq) || p.author.toLowerCase().includes(sq) || p.tags.some(t => t.toLowerCase().includes(sq));
+                    }
+                    return true;
+                }).map((post, i) => (
+                    <Card key={post.id || i} className="bg-surface/40 backdrop-blur-xl border-white/5 hover:border-accent-emerald/50 transition-all hover:-translate-y-1 group cursor-pointer" onClick={() => setSelectedPost(post)}>
                         <CardHeader className="pb-3 border-b border-white/10">
                             <CardTitle className="text-lg text-white group-hover:text-accent-emerald transition-colors line-clamp-1">
                                 {post.title}
@@ -170,8 +208,48 @@ export default function CommunityPage() {
             </div>
 
             <div className="flex justify-center pt-8">
-                <Button variant="secondary" className="border border-white/10 bg-transparent text-gray-400 hover:text-white">더 보기</Button>
+                <Button variant="secondary" className="border border-white/10 bg-transparent text-gray-400 hover:text-white" onClick={fetchPosts}>새로고침</Button>
             </div>
+
+            {/* Read Post Modal */}
+            {selectedPost && selectedPost.id && (
+                <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/60 backdrop-blur-sm animate-in fade-in p-4" onClick={(e) => {
+                    if (e.target === e.currentTarget) setSelectedPost(null);
+                }}>
+                    <div className="bg-surface border border-white/10 p-6 md:p-8 rounded-2xl w-full max-w-2xl shadow-2xl relative max-h-[90vh] overflow-y-auto">
+                        <button onClick={() => setSelectedPost(null)} className="absolute top-4 right-4 text-gray-400 hover:text-white bg-black/20 p-2 rounded-full">
+                            <X className="w-5 h-5" />
+                        </button>
+                        <div className="mb-6 border-b border-white/10 pb-4 pr-8">
+                            <h2 className="text-2xl font-bold text-white mb-2">{selectedPost.title}</h2>
+                            <div className="flex items-center gap-4 text-sm text-gray-400">
+                                <span>작성자: <span className="text-gray-200">{selectedPost.author}</span></span>
+                                <div className="flex gap-1.5 flex-wrap">
+                                    {selectedPost.tags?.map(t => (
+                                        <Badge variant="outline" key={t} className="text-[10px] border-accent-emerald/20 text-accent-emerald/80 bg-accent-emerald/5 px-1 py-0">
+                                            #{t}
+                                        </Badge>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div className="text-gray-200 whitespace-pre-wrap leading-relaxed min-h-[150px] bg-black/20 p-4 rounded-xl border border-white/5">
+                            {/* @ts-ignore */}
+                            {selectedPost.body || "내용이 없습니다."}
+                        </div>
+
+                        <div className="mt-8 flex justify-between items-center pt-4 border-t border-white/10">
+                            <Button variant="ghost" className="gap-2 text-red-400 hover:text-red-300 hover:bg-red-900/20">
+                                <Heart className="w-4 h-4" /> 추천 ({selectedPost.likes || 0})
+                            </Button>
+                            <Button variant="secondary" onClick={() => setSelectedPost(null)}>
+                                닫기
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div >
     );
 }
