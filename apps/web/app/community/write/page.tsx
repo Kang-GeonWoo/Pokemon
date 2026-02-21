@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Loader2, Edit } from "lucide-react";
 
 export default function CommunityWritePage() {
     const router = useRouter();
@@ -80,8 +80,9 @@ export default function CommunityWritePage() {
                 뒤로 가기
             </Button>
 
-            <div className="bg-surface/40 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-10 shadow-2xl">
-                <h1 className="text-3xl font-bold text-white mb-8 border-b border-white/10 pb-4">
+            <div className="bg-[#1e1e1e] border border-white/5 rounded-2xl p-6 md:p-10 shadow-xl">
+                <h1 className="text-2xl font-bold text-white mb-8 border-b border-white/10 pb-4 flex items-center gap-3">
+                    <Edit className="w-6 h-6 text-accent-emerald" />
                     {editId ? '게시글 수정' : '새 게시글 작성'}
                 </h1>
 

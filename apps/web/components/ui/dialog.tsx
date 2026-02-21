@@ -43,6 +43,7 @@ export function Dialog({ isOpen, onClose, children, title, className }: DialogPr
                         className={cn(
                             "fixed left-1/2 top-1/2 z-50 w-full max-w-lg -translate-x-1/2 -translate-y-1/2",
                             "bg-surface/90 backdrop-blur-xl border border-white/10 p-6 shadow-2xl rounded-2xl",
+                            "max-h-[85vh] overflow-y-auto",
                             className
                         )}
                     >

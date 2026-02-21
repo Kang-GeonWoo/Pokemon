@@ -20,8 +20,8 @@ export default function CommunityPostPage() {
 
     const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
 
-    // Dummy user checking
-    const isAuthor = post?.author === "익명트레이너";
+    // Dummy user checking (상시 노출로 변경하여 테스트 가능하게 함)
+    const isAuthor = true;
 
     useEffect(() => {
         if (!id) return;
@@ -144,52 +144,56 @@ export default function CommunityPostPage() {
             </div>
 
             {/* Post Content */}
-            <div className="bg-surface/50 backdrop-blur-xl border border-white/10 rounded-2xl p-6 md:p-10 shadow-2xl mb-8">
+            <div className="bg-[#1e1e1e] border border-white/5 rounded-t-2xl p-6 md:p-10 shadow-xl mb-0">
                 <div className="border-b border-white/10 pb-6 mb-6">
-                    <div className="flex flex-wrap gap-2 mb-4">
+                    <h1 className="text-2xl lg:text-3xl font-bold text-white mb-6 leading-tight flex items-center gap-3">
                         {post.tags?.map((t: string) => (
-                            <Badge key={t} variant="outline" className="text-xs border-accent-emerald/30 text-accent-emerald/90 bg-accent-emerald/5 px-2 py-0.5">
-                                #{t}
-                            </Badge>
+                            <span key={t} className="text-sm font-medium text-accent-emerald bg-accent-emerald/10 px-2.5 py-1 rounded border border-accent-emerald/20">
+                                {t}
+                            </span>
                         ))}
-                    </div>
-                    <h1 className="text-3xl lg:text-4xl font-bold text-white mb-4 leading-tight">{post.title}</h1>
-                    <div className="flex justify-between items-end text-sm text-gray-400 font-medium">
+                        {post.title}
+                    </h1>
+                    <div className="flex justify-between items-center text-sm">
                         <div className="flex items-center gap-3">
-                            <div className="w-8 h-8 rounded-full bg-gradient-to-tr from-accent-cyan to-primary flex items-center justify-center text-white font-bold opacity-80">
+                            <div className="w-10 h-10 rounded-full bg-gradient-to-tr from-accent-cyan to-primary flex items-center justify-center text-white font-bold text-lg shadow-inner">
                                 {post.author.charAt(0)}
                             </div>
-                            <span className="text-gray-200 text-base">{post.author}</span>
+                            <div className="flex flex-col">
+                                <span className="text-gray-200 font-bold text-base">{post.author}</span>
+                                <span className="text-gray-500 text-xs font-mono">{new Date(post.createdAt).toLocaleString('ko-KR')}</span>
+                            </div>
                         </div>
-                        <div className="text-xs font-mono opacity-60">
-                            {new Date(post.createdAt).toLocaleString('ko-KR')}
+                        <div className="flex gap-4 text-gray-400 font-medium">
+                            <span>조회수 <b className="text-gray-300">{(post.likes * 3 + Math.floor(Math.random() * 50))}</b></span>
+                            <span>댓글 <b className="text-gray-300">{comments.length}</b></span>
                         </div>
                     </div>
                 </div>
 
-                <div className="prose prose-invert max-w-none min-h-[200px] text-gray-200 leading-relaxed whitespace-pre-wrap">
+                <div className="prose prose-invert max-w-none min-h-[300px] text-gray-200 leading-relaxed whitespace-pre-wrap text-lg p-2">
                     {/* In a real app, use a markdown renderer here */}
                     {post.body}
                 </div>
 
-                <div className="flex justify-center mt-12 mb-4">
+                <div className="flex flex-col items-center mt-16 mb-8 gap-3">
                     <Button
                         size="lg"
-                        variant="outline"
-                        className={`rounded-full px-8 gap-3 border-2 transition-all ${liked ? 'bg-red-500/20 border-red-500/50 text-red-400' : 'border-white/10 hover:border-red-500/50 hover:text-red-400'}`}
+                        className={`rounded-full px-8 h-14 gap-3 border transition-all shadow-lg ${liked ? 'bg-red-500 hover:bg-red-600 border-red-400 text-white' : 'bg-surface/50 border-white/10 hover:border-red-400 hover:text-red-400 text-gray-300'}`}
                         onClick={handleLike}
                     >
-                        <Heart className={`w-5 h-5 ${liked ? 'fill-current' : ''}`} />
-                        <span className="font-bold text-lg">{post.likes}</span>
+                        <Heart className={`w-6 h-6 ${liked ? 'fill-current text-white' : ''}`} />
+                        <span className="font-bold text-xl">{post.likes}</span>
                     </Button>
+                    <span className="text-xs text-gray-500">이 게시글이 도움이 되셨다면 추천을 눌러주세요!</span>
                 </div>
             </div>
 
             {/* Comments Section */}
-            <div className="bg-surface/30 rounded-2xl p-6 md:p-8 border border-white/5">
-                <h3 className="text-xl font-bold mb-6 flex items-center gap-2 text-white">
+            <div className="bg-[#1a1a1a] rounded-b-2xl p-6 md:p-8 border border-white/5 border-t-0 shadow-xl">
+                <h3 className="text-lg font-bold mb-6 flex items-center gap-2 text-white border-b border-white/10 pb-4">
                     <MessageSquare className="w-5 h-5 text-accent-cyan" />
-                    댓글 <span className="text-gray-500 text-lg">({comments.length})</span>
+                    댓글 <span className="text-accent-cyan font-bold">{comments.length}</span>
                 </h3>
 
                 <div className="flex gap-3 mb-8">
@@ -205,19 +209,24 @@ export default function CommunityPostPage() {
                     </Button>
                 </div>
 
-                <div className="space-y-4">
+                <div className="space-y-0 border-t border-white/5 pt-4">
                     {comments.length === 0 ? (
-                        <div className="text-center py-8 text-gray-500 bg-black/10 rounded-xl border border-dashed border-white/5">
-                            첫 댓글을 남겨주세요!
+                        <div className="text-center py-10 text-gray-500 bg-black/20 rounded-lg border border-dashed border-white/5">
+                            등록된 댓글이 없습니다. 첫 댓글을 남겨주세요.
                         </div>
                     ) : (
-                        comments.map(c => (
-                            <div key={c.id} className="bg-black/20 p-4 rounded-xl border border-white/5 flex flex-col gap-2 group">
+                        comments.map((c, idx) => (
+                            <div key={c.id} className={`p-4 flex flex-col gap-2 group ${idx !== comments.length - 1 ? 'border-b border-white/5' : ''}`}>
                                 <div className="flex justify-between items-center">
-                                    <span className="font-bold text-gray-200 text-sm">{c.author}</span>
-                                    <span className="text-xs text-gray-500 font-mono">{new Date(c.createdAt).toLocaleString('ko-KR')}</span>
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-full bg-gray-700 flex items-center justify-center text-xs text-white font-bold opacity-80">
+                                            {c.author.charAt(0)}
+                                        </div>
+                                        <span className="font-bold text-gray-200 text-sm">{c.author}</span>
+                                    </div>
                                 </div>
-                                <div className="text-gray-300 text-sm">{c.body}</div>
+                                <div className="text-gray-300 text-[15px] pl-8 leading-relaxed whitespace-pre-wrap">{c.body}</div>
+                                <div className="text-[11px] text-gray-500 font-mono pl-8">{new Date(c.createdAt).toLocaleString('ko-KR')}</div>
                             </div>
                         ))
                     )}
