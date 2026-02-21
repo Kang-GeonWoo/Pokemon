@@ -1,0 +1,41 @@
+# 역할 부여
+당신은 최고의 데브옵스(DevOps) 엔지니어이자 풀스택 웹 개발 전문가입니다.
+나는 현재 로컬 Docker 기반으로 구성된 풀스택 모노레포 프로젝트를 "완전 무료 클라우드(Serverless) 아키텍처"로 이전하려고 합니다.
+
+# 현재 프로젝트 환경
+- 패키지 매니저: pnpm (Turborepo 모노레포 아키텍처)
+- 프론트엔드: Next.js (App Router, TailwindCSS, shadcn/ui) - 포트 3000
+- 백엔드: Express.js (Node.ts, ts-node) - 포트 3001
+- 데이터베이스: PostgreSQL (Prisma ORM) - 현재 로컬 Docker에서 동작 중 (포트 5433)
+
+# 내 목표
+현재 Docker 컨테이너(AWS EC2 등 유료 호스팅)를 사용하지 않고, 100% 무료 클라우드 플랫폼들로 분산 배포하여 유지비용을 0원으로 만드는 것입니다. 
+
+# 요구 사항
+아래 3가지 무료 클라우드 플랫폼을 활용하여 **처음부터 끝까지 따라 할 수 있는 가장 상세한 단계별 배포 가이드라인**을 작성해 주세요. 
+단순한 개념 설명을 넘어, 터미널 명령어, 클릭해야 할 버튼 눈 위치, 깃허브 세팅, 그리고 환경변수 연결법까지 완벽하게 명시해 주어야 합니다.
+
+## 1단계: Database 배포 (Supabase)
+- Supabase 회원가입 및 새 프로젝트(PostgreSQL) 생성 방법
+- 발급받은 `DATABASE_URL`과 `DIRECT_URL` (Connection pool) 확인하는 곳
+- 로컬 프로젝트의 `.env` 파일을 Supabase URL로 교체하는 방법
+- 터미널에서 `npx prisma db push` 또는 `migrate`를 통해 클라우드 DB에 스키마를 적용하는 명확한 명령어
+
+## 2단계: Backend API 배포 (Render.com 무료 티어 Web Service)
+- Render.com(또는 Fly.io)에 GitHub 저장소를 연결하여 배포하는 상세 과정
+- Root Directory 세팅 방법 (모노레포의 경우 어느 폴더를 잡아야 하는지)
+- Build Command (예: `pnpm install && pnpm build`)와 Start Command (예: `node dist/index.js`) 설정법
+- 1단계에서 얻은 `DATABASE_URL`을 환경변수로 삽입하는 방법
+- 배포가 완료된 백엔드 호스팅 URL(`https://내백엔드주소.onrender.com`) 뽑아내기
+
+## 3단계: Frontend 배포 (Vercel)
+- Vercel에 GitHub 저장소 연결하기
+- Framework Preset을 `Next.js`로 잡고, Root Directory를 `apps/web` (또는 모노레포 설정)에 맞추는 방법
+- 가장 중요한 환경변수 설정: 프론트가 API와 통신할 수 있도록 `NEXT_PUBLIC_API_URL` 환경변수에 2단계에서 배포한 백엔드 주소 입력하기
+- Vercel 배포 버튼 클릭!
+
+## 주의 및 트러블슈팅 가이드
+- Vercel과 Render 간의 CORS (Cross-Origin Resource Sharing) 에러를 방지하려면 Express에서 cors origin을 어떻게 세팅해야 하는가?
+- Prisma + Supabase 풀링(Transaction) 설정 시 `?pgbouncer=true` 등 주의할 점은 무엇인가?
+
+위 내용들을 바탕으로 코딩 초보자도 1부터 10까지 그대로 복사/붙여넣기 및 클릭만 하면 완벽하게 배포할 수 있는 초강력 가이드 문서를 작성해 주세요!

@@ -1,0 +1,29 @@
+# Tasks: Pokemon Showdown Assistant
+
+- [/] Database & Infrastructure Fixes <!-- id: 0 -->
+    - [/] Start Docker containers (`docker-compose up -d`) <!-- id: 1 -->
+    - [ ] Apply Prisma schema (`pnpm db:push`) <!-- id: 2 -->
+    - [ ] Verify database connection <!-- id: 3 -->
+- [ ] Data Pipeline Enhancements <!-- id: 4 -->
+    - [x] Implement "Quality Check" in `fetch-stats.ts` <!-- id: 5 -->
+    - [x] Fix `fetch-rules.ts`: Parse `formats.js` & Implement Staging logic <!-- id: 6 -->
+    - [x] Consolidate `.env` to `packages/db/.env` (Root .env used as single source) <!-- id: 13 -->
+    - [x] Execute seed scripts <!-- id: 7 -->
+- [ ] Korean Localization <!-- id: 18 -->
+    - [x] Update Prisma Schema (`SpeciesMapping`, `MoveName`) <!-- id: 19 -->
+    - [x] Create `fetch-korean-names.ts` (Scraping/API) <!-- id: 20 -->
+    - [x] Apply to Frontend (Global Context) <!-- id: 21 -->
+- [ ] UI/UX Overhaul & Onboarding <!-- id: 14 -->
+    - [x] Create Design System Components (`Input`, `InstructionCard`) <!-- id: 15 -->
+    - [x] Refactor `BattleAssistantPage` with Glassmorphism <!-- id: 16 -->
+    - [ ] Manual Verification (User check) <!-- id: 17 -->
+- [ ] Frontend-Backend Integration <!-- id: 8 -->
+    - [ ] Connect `Battle Assistant` to `/api/predict/moves` <!-- id: 9 -->
+    - [ ] Implement Global Context (`format_id`/`ruleset`) <!-- id: 10 -->
+- [ ] Custom Features Integration <!-- id: 22 -->
+    - [ ] Phase 1: Advanced Team Builder <!-- id: 23 -->
+    - [ ] Phase 2: Meta Analysis Dashboard <!-- id: 24 -->
+    - [ ] Phase 3: Rental Teams Gallery <!-- id: 25 -->
+    - [ ] Phase 4: Strategy Guides & Tier Lists <!-- id: 26 -->
+- [ ] Authentication <!-- id: 11 -->
+    - [ ] Setup User Auth (Supabase/JWT) <!-- id: 12 -->

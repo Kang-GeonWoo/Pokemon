@@ -1,0 +1,28 @@
+{
+  "name": "pokemon-showdown-assistant",
+  "private": true,
+  "scripts": {
+    "dev": "turbo run dev",
+    "build": "turbo run build",
+    "lint": "turbo run lint",
+    "test": "turbo run test",
+    "db:push": "pnpm --filter db push",
+    "db:migrate": "pnpm -w exec prisma migrate dev --schema packages/db/prisma/schema.prisma",
+    "db:studio": "pnpm -w exec prisma studio --schema packages/db/prisma/schema.prisma",
+    "pipeline:rules": "pnpm -C apps/data-pipeline run fetch:rules",
+    "pipeline:stats": "pnpm -C apps/data-pipeline run fetch:stats"
+  },
+  "devDependencies": {
+    "prettier": "^3.8.1",
+    "prisma": "^5.22.0",
+    "turbo": "^1.13.4",
+    "typescript": "^5.9.3"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "packageManager": "pnpm@9.0.0",
+  "dependencies": {
+    "@prisma/client": "^5.22.0"
+  }
+}

@@ -1,0 +1,454 @@
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+        
+
+// 4.1 Users
+model User {
+  id          String   @id @default(uuid())
+  email       String   @unique
+  password    String   @default("")
+  displayName String   @map("display_name")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  teams          Team[]
+  battleSessions BattleSession[]
+  posts          Post[]
+  comments       Comment[]
+  reactions      Reaction[]
+  reports        Report[]
+
+  @@map("users")
+}
+
+// 4.2 Rules/Formats
+model RulesetSnapshot {
+  id           String   @id @default(uuid())
+  snapshotDate DateTime @map("snapshot_date")
+  rawJson      Json     @map("raw_json") // Storing the full ruleset data
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  formatMaps    FormatRulesetMap[]
+  teams         Team[]
+  battleSessions BattleSession[]
+  posts         Post[]
+  teamSnapshots TeamSnapshot[]
+
+  @@map("ruleset_snapshots")
+}
+
+model Format {
+  id        String   @id @default(uuid())
+  formatId  String   @unique @map("format_id") // e.g. "gen9ou"
+  name      String
+  isActive  Boolean  @default(true) @map("is_active")
+  createdAt DateTime @default(now()) @map("created_at")
+
+  rulesetMaps   FormatRulesetMap[]
+  statsVersions StatsVersion[]
+  teams         Team[]
+  battleSessions BattleSession[]
+  posts         Post[]
+  teamSnapshots TeamSnapshot[]
+
+  @@map("formats")
+}
+
+model FormatRulesetMap {
+  formatId          String @map("format_id")
+  rulesetSnapshotId String @map("ruleset_snapshot_id")
+
+  format          Format          @relation(fields: [formatId], references: [id])
+  rulesetSnapshot RulesetSnapshot @relation(fields: [rulesetSnapshotId], references: [id])
+
+  @@id([formatId, rulesetSnapshotId])
+  @@map("format_ruleset_map")
+}
+
+// 4.3 Stats/Meta
+model StatsVersion {
+  id        String   @id @default(uuid())
+  formatId  String   @map("format_id")
+  month     String   // YYYY-MM
+  status    StatsStatus @default(STAGING)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  format Format @relation(fields: [formatId], references: [id])
+
+  pokemonUsages PokemonUsage[]
+  moveUsages    MoveUsage[]
+  itemUsages    ItemUsage[]
+  battleSessions BattleSession[]
+
+  @@unique([formatId, month])
+  @@map("stats_versions")
+}
+
+enum StatsStatus {
+  STAGING
+  ACTIVE
+  DEPRECATED
+}
+
+model SpeciesMapping {
+  id        String   @id @default(uuid())
+  key       String   @unique // e.g. "landorustherian"
+  speciesId String   @map("species_id") // "landorus"
+  formId    String?  @map("form_id")    // "therian"
+  
+  createdAt DateTime @default(now()) @map("created_at")
+
+  @@map("species_mappings")
+}
+
+// 4.3.1 Localization
+model PokemonName {
+  id        String   @id @default(uuid())
+  speciesId String   @map("species_id") // "pikachu"
+  formId    String?  @map("form_id")
+  name      String   // "피카츄"
+  lang      String   @default("ko")
+
+  @@unique([speciesId, formId, lang])
+  @@map("pokemon_names")
+}
+
+model MoveName {
+  id     String @id @default(uuid())
+  moveId String @map("move_id") // "thunderbolt"
+  name   String // "10만볼트"
+  lang   String @default("ko")
+
+  @@unique([moveId, lang])
+  @@map("move_names")
+}
+
+model AbilityName {
+  id        String @id @default(uuid())
+  abilityId String @map("ability_id") // "static"
+  name      String // "정전기"
+  lang      String @default("ko")
+
+  @@unique([abilityId, lang])
+  @@map("ability_names")
+}
+
+model ItemName {
+  id     String @id @default(uuid())
+  itemId String @map("item_id") // "choiceband"
+  name   String // "구애머리띠"
+  lang   String @default("ko")
+
+  @@unique([itemId, lang])
+  @@map("item_names")
+}
+
+model NatureName {
+  id       String @id @default(uuid())
+  natureId String @map("nature_id") // "jolly"
+  name     String // "명랑"
+  lang     String @default("ko")
+
+  @@unique([natureId, lang])
+  @@map("nature_names")
+}
+
+model TypeName {
+  id     String @id @default(uuid())
+  typeId String @map("type_id") // "electric"
+  name   String // "전기"
+  lang   String @default("ko")
+
+  @@unique([typeId, lang])
+  @@map("type_names")
+}
+
+model PokemonUsage {
+  id             String @id @default(uuid())
+  statsVersionId String @map("stats_version_id")
+  speciesId      String @map("species_id")
+  formId         String? @map("form_id")
+  usageRank      Int    @map("usage_rank")
+  usageRate      Float  @map("usage_rate")
+  rawJson        Json   @map("raw_json")
+
+  statsVersion StatsVersion @relation(fields: [statsVersionId], references: [id])
+
+  @@map("pokemon_usage")
+}
+
+model MoveUsage {
+  id             String @id @default(uuid())
+  statsVersionId String @map("stats_version_id")
+  speciesId      String @map("species_id")
+  formId         String? @map("form_id")
+  moveId         String @map("move_id")
+  probability    Float
+
+  statsVersion StatsVersion @relation(fields: [statsVersionId], references: [id])
+
+  @@map("move_usage")
+}
+
+model ItemUsage {
+  id             String @id @default(uuid())
+  statsVersionId String @map("stats_version_id")
+  speciesId      String @map("species_id")
+  formId         String? @map("form_id")
+  itemId         String @map("item_id")
+  probability    Float
+
+  statsVersion StatsVersion @relation(fields: [statsVersionId], references: [id])
+
+  @@map("item_usage")
+}
+
+// 4.4 Teams
+model Team {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  title             String
+  formatId          String   @map("format_id")
+  rulesetSnapshotId String   @map("ruleset_snapshot_id")
+  visibility        String   @default("PRIVATE") // PRIVATE, PUBLIC, UNLISTED
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user            User            @relation(fields: [userId], references: [id])
+  format          Format          @relation(fields: [formatId], references: [id])
+  rulesetSnapshot RulesetSnapshot @relation(fields: [rulesetSnapshotId], references: [id])
+  versions        TeamVersion[]
+
+  @@map("teams")
+}
+
+model TeamVersion {
+  id           String   @id @default(uuid())
+  teamId       String   @map("team_id")
+  version      Int
+  snapshotJson Json     @map("snapshot_json") // Full team data
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  team Team @relation(fields: [teamId], references: [id])
+
+  @@map("team_versions")
+}
+
+// 4.5 Battle Sessions
+model BattleSession {
+  id                String   @id @default(uuid())
+  userId            String   @map("user_id")
+  formatId          String   @map("format_id")
+  rulesetSnapshotId String   @map("ruleset_snapshot_id")
+  statsVersionId    String   @map("stats_version_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  user            User            @relation(fields: [userId], references: [id])
+  format          Format          @relation(fields: [formatId], references: [id])
+  rulesetSnapshot RulesetSnapshot @relation(fields: [rulesetSnapshotId], references: [id])
+  statsVersion    StatsVersion    @relation(fields: [statsVersionId], references: [id])
+
+  opponentSlots BattleOpponentSlot[]
+
+  @@map("battle_sessions")
+}
+
+model BattleOpponentSlot {
+  id        String   @id @default(uuid())
+  sessionId String   @map("session_id")
+  slot      Int      // 1-3
+  speciesId String   @map("species_id")
+  formId    String?  @map("form_id")
+
+  session BattleSession @relation(fields: [sessionId], references: [id])
+  moves   BattleOpponentMove[]
+
+  @@unique([sessionId, slot])
+  @@map("battle_opponent_slots")
+}
+
+model BattleOpponentMove {
+  id        String   @id @default(uuid())
+  slotId    String   @map("slot_id")
+  moveId    String   @map("move_id")
+  status    String   // CONFIRMED, MANUAL (PREDICTED not stored usually)
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  slot BattleOpponentSlot @relation(fields: [slotId], references: [id])
+
+  @@map("battle_opponent_moves")
+}
+
+// 4.6 Community
+enum PostType {
+  SET
+  TEAM
+}
+
+model Post {
+  id                String   @id @default(uuid())
+  authorId          String   @map("author_id")
+  type              PostType
+  title             String
+  bodyMd            String   @map("body_md")
+  formatId          String   @map("format_id")
+  rulesetSnapshotId String   @map("ruleset_snapshot_id")
+  visibility        String   @default("PUBLIC")
+  status            String   @default("ACTIVE")
+  createdAt         DateTime @default(now()) @map("created_at")
+  updatedAt         DateTime @updatedAt @map("updated_at")
+
+  author          User            @relation(fields: [authorId], references: [id])
+  format          Format          @relation(fields: [formatId], references: [id])
+  rulesetSnapshot RulesetSnapshot @relation(fields: [rulesetSnapshotId], references: [id])
+
+  tags      PostTag[]
+  comments  Comment[]
+  reactions Reaction[]
+  
+  setLink   PostSetLink?
+  teamLink  PostTeamLink?
+
+  @@map("posts")
+}
+
+model PostTag {
+  id     String @id @default(uuid())
+  postId String @map("post_id")
+  tag    String
+
+  post Post @relation(fields: [postId], references: [id])
+
+  @@map("post_tags")
+}
+
+model SetSnapshot {
+  id         String   @id @default(uuid())
+  speciesId  String   @map("species_id")
+  formId     String?  @map("form_id")
+  abilityId  String?  @map("ability_id")
+  itemId     String?  @map("item_id")
+  nature     String?
+  teraType   String?  @map("tera_type")
+  evJson     Json     @map("ev_json")
+  ivJson     Json     @map("iv_json")
+  movesJson  Json     @map("moves_json")
+  notesMd    String?  @map("notes_md")
+  createdAt  DateTime @default(now()) @map("created_at")
+
+  postLinks     PostSetLink[]
+  teamSlots     TeamSlot[]
+
+  @@map("set_snapshots")
+}
+
+model TeamSnapshot {
+  id                String   @id @default(uuid())
+  formatId          String   @map("format_id")
+  rulesetSnapshotId String   @map("ruleset_snapshot_id")
+  createdAt         DateTime @default(now()) @map("created_at")
+
+  format          Format          @relation(fields: [formatId], references: [id])
+  rulesetSnapshot RulesetSnapshot @relation(fields: [rulesetSnapshotId], references: [id])
+
+  slots     TeamSlot[]
+  postLinks PostTeamLink[]
+
+  @@map("team_snapshots")
+}
+
+model TeamSlot {
+  id             String @id @default(uuid())
+  teamSnapshotId String @map("team_snapshot_id")
+  slot           Int    // 1-6
+  setSnapshotId  String @map("set_snapshot_id")
+
+  teamSnapshot TeamSnapshot @relation(fields: [teamSnapshotId], references: [id])
+  setSnapshot  SetSnapshot  @relation(fields: [setSnapshotId], references: [id])
+
+  @@map("team_slots")
+}
+
+model PostSetLink {
+  postId        String @id @map("post_id")
+  setSnapshotId String @map("set_snapshot_id")
+
+  post        Post        @relation(fields: [postId], references: [id])
+  setSnapshot SetSnapshot @relation(fields: [setSnapshotId], references: [id])
+
+  @@map("post_set_links")
+}
+
+model PostTeamLink {
+  postId         String @id @map("post_id")
+  teamSnapshotId String @map("team_snapshot_id")
+
+  post         Post         @relation(fields: [postId], references: [id])
+  teamSnapshot TeamSnapshot @relation(fields: [teamSnapshotId], references: [id])
+
+  @@map("post_team_links")
+}
+
+model Comment {
+  id        String   @id @default(uuid())
+  postId    String   @map("post_id")
+  authorId  String   @map("author_id")
+  parentId  String?  @map("parent_id")
+  body      String
+  status    String   @default("ACTIVE")
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  post   Post   @relation(fields: [postId], references: [id])
+  author User   @relation(fields: [authorId], references: [id])
+  parent Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+  replies Comment[] @relation("CommentReplies")
+
+  @@map("comments")
+}
+
+enum ReactionType {
+  LIKE
+  BOOKMARK
+}
+
+model Reaction {
+  id        String       @id @default(uuid())
+  userId    String       @map("user_id")
+  postId    String       @map("post_id")
+  type      ReactionType
+  createdAt DateTime     @default(now()) @map("created_at")
+
+  user User @relation(fields: [userId], references: [id])
+  post Post @relation(fields: [postId], references: [id])
+
+  @@unique([userId, postId, type])
+  @@map("reactions")
+}
+
+enum ReportTargetType {
+  POST
+  COMMENT
+}
+
+model Report {
+  id         String           @id @default(uuid())
+  reporterId String           @map("reporter_id")
+  targetType ReportTargetType @map("target_type")
+  targetId   String           @map("target_id")
+  reason     String
+  status     String           @default("PENDING")
+  createdAt  DateTime         @default(now()) @map("created_at")
+
+  reporter User @relation(fields: [reporterId], references: [id])
+
+  @@map("reports")
+}

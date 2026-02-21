@@ -1,0 +1,25 @@
+services:
+  db:
+    image: postgres:16
+    container_name: pokemon_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pokemon
+      POSTGRES_USER: pokemon
+      POSTGRES_PASSWORD: pokemon_pw
+    ports:
+      - "5433:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  adminer:
+    image: adminer:4
+    container_name: pokemon_adminer
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    depends_on:
+      - db
+
+volumes:
+  pgdata:

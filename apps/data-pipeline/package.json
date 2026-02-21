@@ -1,0 +1,22 @@
+{
+    "name": "data-pipeline",
+    "version": "1.0.0",
+    "scripts": {
+        "start": "ts-node src/index.ts",
+        "fetch:rules": "ts-node src/fetch-rules.ts",
+        "fetch:stats": "ts-node src/fetch-stats.ts",
+        "fetch:korean": "ts-node --transpile-only src/fetch-korean-names.ts"
+    },
+    "dependencies": {
+        "axios": "^1.3.0",
+        "cheerio": "^1.0.0-rc.12",
+        "db": "workspace:*",
+        "dotenv": "^16.0.0",
+        "shared": "workspace:*"
+    },
+    "devDependencies": {
+        "@types/node": "^18.15.11",
+        "ts-node": "^10.9.2",
+        "typescript": "^5.0.0"
+    }
+}

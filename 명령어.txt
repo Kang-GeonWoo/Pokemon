@@ -1,0 +1,18 @@
+1) pnpm -C apps/api dev
+
+의미: 백엔드(API 서버) 를 개발모드로 실행
+
+결과: Server running on port 3001
+
+
+
+
+2) pnpm -C apps/web dev
+
+의미: 프론트(Next.js 웹 UI) 를 개발모드로 실행
+
+결과: started server on ...:3000 → http://localhost:3000
+
+
+pnpm -C packages/db exec prisma studio
+DB 확인용

@@ -1,0 +1,9 @@
+axios
+cheerio
+# Note: These are often used via ts-node for this project's TypeScript scripts.
+# If you are looking for Python equivalents for data scraping/processing:
+requests
+beautifulsoup4
+pandas
+psycopg2-binary
+python-dotenv
