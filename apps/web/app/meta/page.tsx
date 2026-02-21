@@ -44,12 +44,22 @@ export default function MetaAnalyticsPage() {
 
     let displaySets: any[] = [];
     if (selectedPokemon && setsData) {
-        // Find matching key
-        const targetKey = Object.keys(setsData).find(k => k !== 'stats' && toId(k) === selectedPokemon);
-        if (targetKey && setsData[targetKey]) {
-            const pkmnSets = setsData[targetKey];
-            // Get up to 5 sets
-            displaySets = Object.entries(pkmnSets).slice(0, 5).map(([name, data]) => ({ name, data }));
+        // Collect sets across different formats
+        for (const format in setsData) {
+            const formatData = setsData[format];
+            if (formatData && formatData.dex) {
+                const searchId = toId(selectedPokemon);
+                const targetKey = Object.keys(formatData.dex).find(k => toId(k) === searchId);
+
+                if (targetKey) {
+                    const pkmnSets = formatData.dex[targetKey];
+                    for (const [name, data] of Object.entries(pkmnSets)) {
+                        displaySets.push({ name: `[${format.toUpperCase()}] ${name}`, data });
+                        if (displaySets.length >= 5) break;
+                    }
+                }
+            }
+            if (displaySets.length >= 5) break;
         }
     }
 

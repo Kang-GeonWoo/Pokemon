@@ -145,52 +145,63 @@ predictRouter.post('/moves', async (req, res) => {
         const setsData = formatSetsCache.get('gen9');
         if (setsData) {
           const searchId = s.formId ? toId(s.formId) : toId(s.speciesId);
-          const targetKey = Object.keys(setsData).find(k => k !== 'stats' && toId(k) === searchId);
+          const allSetMovesList: Set<string>[] = [];
 
-          if (targetKey) {
-            const pkmnSets = setsData[targetKey];
-            const allSetMovesList: Set<string>[] = [];
-
-            for (const setName in pkmnSets) {
-              const setObj = pkmnSets[setName];
-              if (setObj && setObj.moves && Array.isArray(setObj.moves)) {
-                let setMoveIds = new Set<string>();
-                for (const m of setObj.moves) {
-                  if (Array.isArray(m)) m.forEach((mx: string) => setMoveIds.add(toId(mx)));
-                  else setMoveIds.add(toId(m));
+          // gen9.json 구조: { "gen9ou": { "dex": { "Garchomp": { "Swords Dance": { moves: [...] } } } } }
+          for (const format in setsData) {
+            const formatData = setsData[format];
+            if (formatData && formatData.dex) {
+              const targetKey = Object.keys(formatData.dex).find(k => toId(k) === searchId);
+              if (targetKey) {
+                const pkmnSets = formatData.dex[targetKey];
+                for (const setName in pkmnSets) {
+                  const setObj = pkmnSets[setName];
+                  if (setObj && setObj.moves && Array.isArray(setObj.moves)) {
+                    let setMoveIds = new Set<string>();
+                    for (const m of setObj.moves) {
+                      if (Array.isArray(m)) m.forEach((mx: string) => setMoveIds.add(toId(mx)));
+                      else setMoveIds.add(toId(m));
+                    }
+                    allSetMovesList.push(setMoveIds);
+                  }
                 }
-                allSetMovesList.push(setMoveIds);
               }
             }
+          }
 
-            if (allSetMovesList.length > 0) {
+          if (allSetMovesList.length > 0) {
+            // "Locked" 기술이 있다면, 해당 기술을 모두 포함하는 '세트(탬플릿)'만 남긴다.
+            let validSets = allSetMovesList;
+            if (locked.size > 0) {
+              validSets = allSetMovesList.filter(setMoves => {
+                return Array.from(locked).every(l => setMoves.has(l));
+              });
+            }
+
+            // 만약 일치하는 세트가 있다면, 그 세트들에 존재하는 기술만 후보(filtered)로 남긴다 (강력한 세트 기반 제한)
+            if (validSets.length > 0) {
+              const allowedMovesFromSets = new Set<string>();
+              validSets.forEach(setMoves => {
+                setMoves.forEach(m => allowedMovesFromSets.add(m));
+              });
+
+              // 통계 기반 원본 확률 리스트(filtered) 중에서 세트에 포함된 기술만 남김. 확률값은 원본 통계 유지.
+              const boosted = filtered.filter(candidate => allowedMovesFromSets.has(candidate.moveId));
+              if (boosted.length > 0) {
+                filtered = boosted; // 완전히 덮어씌워서 근본없는 짬뽕 기술 배제
+              }
+            } else if (locked.size > 0) {
+              // 일치하는 세트가 없는데 locked가 진행중이라면, 차선책으로 동시 출현(Co-existence) 페널티 (기존 로직)
               const validatedFiltered: MoveRow[] = [];
               const pickedMoves = new Set<string>(locked);
 
               for (const candidate of filtered) {
-                if (pickedMoves.size === 0) {
-                  validatedFiltered.push(candidate);
-                  pickedMoves.add(candidate.moveId);
-                  continue;
+                const canCoExist = allSetMovesList.some(setMoves => setMoves.has(candidate.moveId));
+                if (!canCoExist) {
+                  candidate.probability *= 0.05; // 한 번도 같이 쓰인 적 없는 기술은 확률 대폭 깎음
                 }
-
-                // Check if candidate can co-exist with ALREADY sequence of pickedMoves
-                // In ANY standard set
-                const canCoExist = allSetMovesList.some(setMoves => {
-                  const hasAllPicked = Array.from(pickedMoves).every(pm => setMoves.has(pm));
-                  return hasAllPicked && setMoves.has(candidate.moveId);
-                });
-
-                if (canCoExist) {
-                  validatedFiltered.push(candidate);
-                  pickedMoves.add(candidate.moveId);
-                } else {
-                  // Mutual exclusion penalty: drastically reduce probability if they never appear together
-                  candidate.probability *= 0.05;
-                  validatedFiltered.push(candidate);
-                }
+                validatedFiltered.push(candidate);
               }
-
               filtered = validatedFiltered.sort((a, b) => b.probability - a.probability);
             }
           }
