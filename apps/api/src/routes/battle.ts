@@ -285,7 +285,7 @@ battleRouter.post('/opponent/reset', async (req, res) => {
     where: { sessionId },
     select: { id: true },
   });
-  const slotIds = slots.map(s => s.id);
+  const slotIds = slots.map((s: { id: string }) => s.id);
 
   if (slotIds.length) {
     await prisma.battleOpponentMove.deleteMany({ where: { slotId: { in: slotIds } } });
