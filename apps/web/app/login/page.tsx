@@ -27,11 +27,12 @@ export default function LoginPage() {
 
         try {
             const endpoint = isLogin ? "/api/auth/login" : "/api/auth/register";
+            const apiBase = process.env.NEXT_PUBLIC_API_BASE || "http://localhost:3001";
             const body = isLogin
                 ? { email, password }
                 : { email, password, displayName };
 
-            const res = await fetch(`http://localhost:3001${endpoint}`, {
+            const res = await fetch(`${apiBase}${endpoint}`, {
                 method: "POST",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify(body),
