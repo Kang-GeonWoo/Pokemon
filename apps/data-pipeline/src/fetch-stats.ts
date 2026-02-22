@@ -47,7 +47,7 @@ async function tryFetchChaosJsonGz(month: string, formatId: string, cutoff: numb
 }
 
 async function fetchStatsForFormat(formatId: string) {
-  // 1) DB에서 format 존재 확인 (fetch-rules 먼저 성공했어야 함)
+  // 1) DB에서 format 존재 확인
   const format = await prisma.format.findUnique({
     where: { formatId },
   });
@@ -57,57 +57,82 @@ async function fetchStatsForFormat(formatId: string) {
     return;
   }
 
-  // 2) 최신 month들 중에서 찾기
-  const months = await getLatestMonths(12);
+  // 2) 최신 24개월 (2년) 데이터 병합 수집
+  const months = await getLatestMonths(24);
 
-  // OU는 1695를 우선으로 시도 (없으면 다른 컷도 시도)
+  // OU는 1695를 우선으로 시도
   const cutoffs = formatId === 'gen9ou'
     ? [1695, 1825, 1500, 0]
     : [0, 1500, 1630, 1760];
 
-  let foundMonth: string | null = null;
-  let chaos: ChaosData | null = null;
-  let foundCutoff: number | null = null;
+  let foundMonthsCount = 0;
+  const AggregatedPokemonData: Record<string, any> = {};
 
   for (const month of months) {
+    let chaos = null;
+    let foundCutoff = null;
     for (const cutoff of cutoffs) {
       const data = await tryFetchChaosJsonGz(month, formatId, cutoff);
       if (data?.data && Object.keys(data.data).length > 0) {
-        foundMonth = month;
         chaos = data;
         foundCutoff = cutoff;
         break;
       }
     }
-    if (chaos) break;
+
+    if (chaos && chaos.data) {
+      // 최신일수록 1.0, 과거일수록 0.05씩 감소 (최소 0.1)
+      const weight = Math.max(0.1, 1.0 - (foundMonthsCount * 0.05));
+      console.log(`[${formatId}] Aggregating ${month} (cutoff: ${foundCutoff}) with weight ${weight.toFixed(2)}`);
+
+      for (const species in chaos.data) {
+        if (!AggregatedPokemonData[species]) {
+          AggregatedPokemonData[species] = { usage: 0, Moves: {}, Items: {} };
+        }
+        const pData = chaos.data[species];
+        AggregatedPokemonData[species].usage += (pData.usage || 0) * weight;
+
+        if (pData.Moves) {
+          for (const mv in pData.Moves) {
+            AggregatedPokemonData[species].Moves[mv] = (AggregatedPokemonData[species].Moves[mv] || 0) + (pData.Moves[mv] * weight);
+          }
+        }
+        if (pData.Items) {
+          for (const it in pData.Items) {
+            AggregatedPokemonData[species].Items[it] = (AggregatedPokemonData[species].Items[it] || 0) + (pData.Items[it] * weight);
+          }
+        }
+      }
+      foundMonthsCount++;
+    }
   }
 
-  if (!chaos || !foundMonth || foundCutoff === null) {
-    console.warn(`No stats found for ${formatId} within latest months. Skipping.`);
+  if (foundMonthsCount === 0) {
+    console.warn(`No stats found for ${formatId} within latest 24 months. Skipping.`);
     return;
   }
 
-  console.log(`FOUND stats: format=${formatId}, month=${foundMonth}, cutoff=${foundCutoff}`);
+  const foundMonthAgg = `AGG-${foundMonthsCount}M`; // e.g., "AGG-12M"
+  console.log(`Total months aggregated for ${formatId}: ${foundMonthsCount}`);
 
   // 3) StatsVersion upsert
   const statsVersion = await prisma.statsVersion.upsert({
     where: {
       formatId_month: {
-        formatId: format.id,   // formats.id (PK)
-        month: foundMonth,     // YYYY-MM
+        formatId: format.id,
+        month: foundMonthAgg,
       },
     },
     update: {},
     create: {
       formatId: format.id,
-      month: foundMonth,
+      month: foundMonthAgg,
       status: StatsStatus.STAGING,
     },
   });
 
   // 4) Insert usage rows
-  const pokemonData = chaos.data!;
-  const speciesNames = Object.keys(pokemonData);
+  const speciesNames = Object.keys(AggregatedPokemonData);
 
   // 간단 QC 기준
   const MIN_POKEMON_COUNT = 50;
@@ -120,15 +145,15 @@ async function fetchStatsForFormat(formatId: string) {
 
   // usage 기준 정렬(없으면 0)
   const sorted = speciesNames.sort((a, b) => {
-    const au = pokemonData[a]?.usage ?? 0;
-    const bu = pokemonData[b]?.usage ?? 0;
+    const au = AggregatedPokemonData[a]?.usage ?? 0;
+    const bu = AggregatedPokemonData[b]?.usage ?? 0;
     return bu - au;
   });
 
   let rank = 1;
 
   for (const speciesName of sorted) {
-    const pData = pokemonData[speciesName];
+    const pData = AggregatedPokemonData[speciesName];
     const speciesId = toId(speciesName);
     const formId = null;
 
@@ -194,7 +219,7 @@ async function fetchStatsForFormat(formatId: string) {
       where: { id: statsVersion.id },
       data: { status: StatsStatus.ACTIVE },
     });
-    console.log(`QC PASS -> StatsVersion ACTIVE (${foundMonth})`);
+    console.log(`QC PASS -> StatsVersion ACTIVE (${foundMonthAgg})`);
   } else {
     console.warn(`QC FAIL -> keep STAGING (${sorted.length} < ${MIN_POKEMON_COUNT})`);
   }

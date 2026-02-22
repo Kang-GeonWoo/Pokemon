@@ -10,6 +10,20 @@ import { RefreshCw, Zap, Trash2, Shield, Lock, Ban, Eraser, Loader2 } from "luci
 import { useMetadata } from "@/hooks/useMetadata";
 import { useState, useEffect, useMemo, useRef } from "react";
 
+const CHOSUNG_LIST = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+function getChosung(str: string) {
+  let result = "";
+  for (let i = 0; i < str.length; i++) {
+    const code = str.charCodeAt(i) - 0xAC00;
+    if (code > -1 && code < 11172) {
+      result += CHOSUNG_LIST[Math.floor(code / 588)];
+    } else {
+      result += str[i];
+    }
+  }
+  return result;
+}
+
 export default function BattleAssistantPage() {
   const {
     sid,
@@ -75,8 +89,14 @@ export default function BattleAssistantPage() {
   const getSuggestions = (query: string) => {
     if (!query || query.length < 1) return [];
     const q = query.toLowerCase();
+    const chosungQ = getChosung(q); // 초성 또는 일반 텍스트 혼합 추출
+
     return Object.entries(metadata?.pokemon || {})
-      .filter(([id, name]) => (name as string).toLowerCase().includes(q) || id.includes(q))
+      .filter(([id, name]) => {
+        const lowerName = (name as string).toLowerCase();
+        const chosungName = getChosung(lowerName);
+        return lowerName.includes(q) || id.includes(q) || chosungName.includes(chosungQ);
+      })
       .slice(0, 10); // top 10
   };
 

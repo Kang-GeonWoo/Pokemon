@@ -6,6 +6,20 @@ import { cn } from "@/lib/utils"
 import { Input } from "./input"
 import { motion, AnimatePresence } from "framer-motion"
 
+const CHOSUNG_LIST = ["ㄱ", "ㄲ", "ㄴ", "ㄷ", "ㄸ", "ㄹ", "ㅁ", "ㅂ", "ㅃ", "ㅅ", "ㅆ", "ㅇ", "ㅈ", "ㅉ", "ㅊ", "ㅋ", "ㅌ", "ㅍ", "ㅎ"];
+function getChosung(str: string) {
+    let result = "";
+    for (let i = 0; i < str.length; i++) {
+        const code = str.charCodeAt(i) - 0xAC00;
+        if (code > -1 && code < 11172) {
+            result += CHOSUNG_LIST[Math.floor(code / 588)];
+        } else {
+            result += str[i];
+        }
+    }
+    return result;
+}
+
 interface PokemonSearchProps {
     onSelect: (speciesId: string) => void
     pokemonList: Record<string, string> // id -> name
@@ -20,11 +34,15 @@ export function PokemonSearch({ onSelect, pokemonList, placeholder, className }:
     const results = React.useMemo(() => {
         if (!query) return []
         const lowerQuery = query.toLowerCase()
+        const chosungQ = getChosung(lowerQuery)
         return Object.entries(pokemonList)
-            .filter(([id, name]) =>
-                id.toLowerCase().includes(lowerQuery) ||
-                name.includes(query)
-            )
+            .filter(([id, name]) => {
+                const lowerName = name.toLowerCase()
+                const chosungName = getChosung(lowerName)
+                return id.toLowerCase().includes(lowerQuery) ||
+                    lowerName.includes(lowerQuery) ||
+                    chosungName.includes(chosungQ)
+            })
             .slice(0, 10)
     }, [query, pokemonList])
 
