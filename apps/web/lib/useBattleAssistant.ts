@@ -16,6 +16,7 @@ type PredictionSlot = {
   slot_id: string;
   species_id: string;
   moves: PredictionMove[];
+  items?: { item_id: string; p: number; }[];
 };
 
 type PredictResponse = {

@@ -140,9 +140,14 @@ export default function MetaAnalyticsPage() {
                             <div className="space-y-6">
                                 {displaySets.map((setObj, i) => {
                                     const d = setObj.data as any;
-                                    const ability = d.abilities?.[0] ? (metadata.abilities[toId(d.abilities[0])] || d.abilities[0]) : '-';
-                                    const item = d.items?.[0] ? (metadata.items[toId(d.items[0])] || d.items[0]) : '-';
-                                    const nature = d.nature ? (metadata.natures[toId(d.nature)] || d.nature) : '-';
+                                    const abilityName = d.ability;
+                                    const ability = (metadata.abilities && metadata.abilities[toId(abilityName)]) || abilityName || '-';
+
+                                    const itemName = d.item;
+                                    const item = (metadata.items && metadata.items[toId(itemName)]) || itemName || '-';
+
+                                    const natureName = d.nature;
+                                    const nature = (metadata.natures && metadata.natures[toId(natureName)]) || natureName || '-';
                                     const moves = (d.moves || []).map((mArr: any) => {
                                         const m = Array.isArray(mArr) ? mArr[0] : mArr;
                                         return metadata.moves[toId(m)] || m;

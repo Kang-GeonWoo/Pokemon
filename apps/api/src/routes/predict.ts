@@ -170,7 +170,9 @@ predictRouter.post('/moves', async (req, res) => {
           }
 
           if (allSetMovesList.length > 0) {
-            // "Locked" 기술이 있다면, 해당 기술을 모두 포함하는 '세트(탬플릿)'만 남긴다.
+            const allStandardMoves = new Set<string>();
+            allSetMovesList.forEach(s => s.forEach(m => allStandardMoves.add(m)));
+
             let validSets = allSetMovesList;
             if (locked.size > 0) {
               validSets = allSetMovesList.filter(setMoves => {
@@ -178,32 +180,24 @@ predictRouter.post('/moves', async (req, res) => {
               });
             }
 
-            // 만약 일치하는 세트가 있다면, 그 세트들에 존재하는 기술만 후보(filtered)로 남긴다 (강력한 세트 기반 제한)
-            if (validSets.length > 0) {
-              const allowedMovesFromSets = new Set<string>();
-              validSets.forEach(setMoves => {
-                setMoves.forEach(m => allowedMovesFromSets.add(m));
-              });
+            const validPartnerMoves = new Set<string>();
+            validSets.forEach(s => s.forEach(m => validPartnerMoves.add(m)));
 
-              // 통계 기반 원본 확률 리스트(filtered) 중에서 세트에 포함된 기술만 남김. 확률값은 원본 통계 유지.
-              const boosted = filtered.filter(candidate => allowedMovesFromSets.has(candidate.moveId));
-              if (boosted.length > 0) {
-                filtered = boosted; // 완전히 덮어씌워서 근본없는 짬뽕 기술 배제
-              }
-            } else if (locked.size > 0) {
-              // 일치하는 세트가 없는데 locked가 진행중이라면, 차선책으로 동시 출현(Co-existence) 페널티 (기존 로직)
-              const validatedFiltered: MoveRow[] = [];
-              const pickedMoves = new Set<string>(locked);
-
-              for (const candidate of filtered) {
-                const canCoExist = allSetMovesList.some(setMoves => setMoves.has(candidate.moveId));
-                if (!canCoExist) {
-                  candidate.probability *= 0.05; // 한 번도 같이 쓰인 적 없는 기술은 확률 대폭 깎음
+            for (const candidate of filtered) {
+              if (locked.size > 0) {
+                if (allStandardMoves.has(candidate.moveId) && !validPartnerMoves.has(candidate.moveId)) {
+                  // 1) 이건 스모곤 정석 세트 덱에 존재하는 스킬이긴 한데, "현재 유저가 확정한 스킬(예: 역린)"과 단 한 번도 같이 쓰인 적 없는 스킬임. 
+                  // 즉 명백한 '상호 배타적' 기믹/정석 스킬(예: 역린 vs 드태)이므로 확률을 깎는다.
+                  candidate.probability *= 0.05;
+                } else if (validPartnerMoves.has(candidate.moveId)) {
+                  // 2) 정석 세트 조합에 부합하는 연계 스킬. 조금 더 상위 노출하도록 가중치.
+                  candidate.probability *= 1.2;
                 }
-                validatedFiltered.push(candidate);
+                // 3) 그 외(예: 회오리불꽃). 아예 정석에 등록도 안 된 비주류 오프 메타 스킬이라 allStandardMoves에 없음. 
+                // 통계 원본 확률을 건드리지 않고 그대로 존중함!
               }
-              filtered = validatedFiltered.sort((a, b) => b.probability - a.probability);
             }
+            filtered = filtered.sort((a, b) => b.probability - a.probability);
           }
         }
       } catch (e) {
@@ -212,7 +206,6 @@ predictRouter.post('/moves', async (req, res) => {
     }
 
     const remainingTop = filtered.slice(0, remainingSlotCount);
-    // 남은 자리(4-k)를 채울 후보들의 확률을 다시 1.0 분모로 재계산(동적 예측)
     const norm = normalizeTop4(remainingTop);
 
     const finalMoves = [
@@ -220,11 +213,41 @@ predictRouter.post('/moves', async (req, res) => {
       ...norm.map(m => ({ move_id: m.move_id, p: m.p, locked: false }))
     ];
 
+    // -- 도구 (Item) 예측 로직 추가 --
+    const itemUsages = await prisma.itemUsage.findMany({
+      where: {
+        speciesId: s.speciesId,
+        formId: s.formId,
+        statsVersion: { status: 'ACTIVE' },
+      },
+      select: { itemId: true, probability: true },
+    });
+
+    const itemMaxMap = new Map<string, number>();
+    for (const u of itemUsages) {
+      const current = itemMaxMap.get(u.itemId) || 0;
+      if (typeof u.probability === 'number' && u.probability > current) {
+        itemMaxMap.set(u.itemId, u.probability);
+      }
+    }
+
+    const itemsRaw = Array.from(itemMaxMap.entries())
+      .map(([itemId, probability]) => ({ itemId, probability }))
+      .sort((a, b) => b.probability - a.probability)
+      .slice(0, 5); // top 5 items
+
+    const sumItems = itemsRaw.reduce((acc, r) => acc + (r.probability || 0), 0) || 1;
+    const finalItems = itemsRaw.map(r => ({
+      item_id: r.itemId,
+      p: (r.probability || 0) / sumItems,
+    }));
+
     predictions.push({
       slot: s.slot,
-      slot_id: s.id,          // ✅ 핵심: DB slot id
+      slot_id: s.id,
       species_id: s.speciesId,
       moves: finalMoves,
+      items: finalItems,
     });
   }
 

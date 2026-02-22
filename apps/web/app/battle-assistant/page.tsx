@@ -317,6 +317,22 @@ export default function BattleAssistantPage() {
                       placeholder="관측 기술 직접 검색 🔒"
                     />
                   </div>
+
+                  {/* Item Predictions */}
+                  {p.items && p.items.length > 0 && (
+                    <div className="pt-4 mt-2 border-t border-white/10">
+                      <div className="flex items-center gap-2 mb-2">
+                        <span className="text-xs text-gray-400 uppercase font-bold">🎯 유력 소지품 (도구)</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {p.items.map((it: any) => (
+                          <span key={it.item_id} className="text-xs bg-black/30 border border-white/10 px-2 py-1 rounded text-gray-300">
+                            {metadata?.items?.[it.item_id] || it.item_id} <span className="text-accent-cyan ml-0.5">{(it.p * 100).toFixed(1)}%</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             );
