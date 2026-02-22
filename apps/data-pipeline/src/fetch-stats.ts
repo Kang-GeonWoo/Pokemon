@@ -173,8 +173,7 @@ async function fetchStatsForFormat(formatId: string) {
     if (movesObj && typeof movesObj === 'object') {
       const moves = Object.keys(movesObj)
         .map(name => ({ name, prob: movesObj[name] }))
-        .sort((x, y) => (y.prob ?? 0) - (x.prob ?? 0))
-        .slice(0, 50);
+        .sort((x, y) => (y.prob ?? 0) - (x.prob ?? 0));
 
       for (const mv of moves) {
         await prisma.moveUsage.create({
@@ -194,8 +193,7 @@ async function fetchStatsForFormat(formatId: string) {
     if (itemsObj && typeof itemsObj === 'object') {
       const items = Object.keys(itemsObj)
         .map(name => ({ name, prob: itemsObj[name] }))
-        .sort((x, y) => (y.prob ?? 0) - (x.prob ?? 0))
-        .slice(0, 10);
+        .sort((x, y) => (y.prob ?? 0) - (x.prob ?? 0));
 
       for (const it of items) {
         await prisma.itemUsage.create({

@@ -115,8 +115,7 @@ predictRouter.post('/moves', async (req, res) => {
 
     const raw: MoveRow[] = Array.from(maxProbMap.entries())
       .map(([moveId, probability]) => ({ moveId, probability }))
-      .sort((a, b) => b.probability - a.probability)
-      .slice(0, 50);
+      .sort((a, b) => b.probability - a.probability);
 
     const banned = bannedSetBySlot.get(s.id) ?? new Set<string>();
     const locked = lockedSetBySlot.get(s.id) ?? new Set<string>();
